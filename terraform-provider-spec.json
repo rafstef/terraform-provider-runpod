@@ -1,0 +1,859 @@
+{
+  "version": "0.1",
+  "provider": {
+    "name": "runpod",
+    "description": "Terraform provider for RunPod infrastructure management",
+    "website": "https://www.runpod.io",
+    "documentation": "https://docs.runpod.io",
+    "github": "https://github.com/runpod",
+    "attributes": [
+      {
+        "name": "api_key",
+        "string": {
+          "computed_optional_required": "optional",
+          "description": "RunPod API key",
+          "sensitive": true
+        }
+      }
+    ]
+  },
+  "dataSources": [
+    {
+      "name": "pod",
+      "description": "Retrieve information about a specific RunPod pod",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "The pod ID"
+            }
+          },
+          {
+            "name": "name",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Pod name"
+            }
+          },
+          {
+            "name": "status",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Current pod status (RUNNING, STOPPED, etc.)"
+            }
+          },
+          {
+            "name": "gpu_count",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Number of GPUs allocated"
+            }
+          },
+          {
+            "name": "gpu_type_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "GPU type ID"
+            }
+          },
+          {
+            "name": "machine_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Machine ID where pod is running"
+            }
+          },
+          {
+            "name": "image_name",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Docker image name"
+            }
+          },
+          {
+            "name": "container_disk_in_gb",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Container disk size in GB"
+            }
+          },
+          {
+            "name": "memory_in_gb",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Memory allocated in GB"
+            }
+          },
+          {
+            "name": "cost_per_hr",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Cost per hour"
+            }
+          },
+          {
+            "name": "created_at",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Creation timestamp"
+            }
+          },
+          {
+            "name": "desired_status",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Desired pod status"
+            }
+          },
+          {
+            "name": "docker_args",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Docker arguments"
+            }
+          },
+          {
+            "name": "env",
+            "list": {
+              "computed_optional_required": "computed",
+              "element_type": {
+                "string": {}
+              },
+              "description": "Environment variables"
+            }
+          },
+          {
+            "name": "ports",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Port configuration"
+            }
+          },
+          {
+            "name": "template_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Template ID used for this pod"
+            }
+          },
+          {
+            "name": "volume_in_gb",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Volume size in GB"
+            }
+          },
+          {
+            "name": "volume_mount_path",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Volume mount path"
+            }
+          },
+          {
+            "name": "machine_type",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Machine type"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "machine",
+      "description": "Retrieve information about a RunPod machine",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Machine ID"
+            }
+          },
+          {
+            "name": "name",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Machine name"
+            }
+          },
+          {
+            "name": "gpu_type_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "GPU type ID"
+            }
+          },
+          {
+            "name": "gpu_total",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Total GPU count"
+            }
+          },
+          {
+            "name": "gpu_reserved",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Reserved GPU count"
+            }
+          },
+          {
+            "name": "cpu_count",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "CPU count"
+            }
+          },
+          {
+            "name": "cpu_type_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "CPU type ID"
+            }
+          },
+          {
+            "name": "memory_total",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Total memory in GB"
+            }
+          },
+          {
+            "name": "memory_reserved",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Reserved memory in GB"
+            }
+          },
+          {
+            "name": "disk_total",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Total disk in GB"
+            }
+          },
+          {
+            "name": "disk_reserved",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Reserved disk in GB"
+            }
+          },
+          {
+            "name": "listed",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether machine is listed"
+            }
+          },
+          {
+            "name": "verified",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether machine is verified"
+            }
+          },
+          {
+            "name": "secure_cloud",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether machine is in secure cloud"
+            }
+          },
+          {
+            "name": "host_price_per_gpu",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Host price per GPU"
+            }
+          },
+          {
+            "name": "data_center_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Data center ID"
+            }
+          },
+          {
+            "name": "location",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Location/country code"
+            }
+          },
+          {
+            "name": "maintenance_mode",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether machine is in maintenance mode"
+            }
+          },
+          {
+            "name": "runpod_ip",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "RunPod IP address"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "machines",
+      "description": "List all available RunPod machines",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Machine ID"
+            }
+          },
+          {
+            "name": "name",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Machine name"
+            }
+          },
+          {
+            "name": "gpu_type_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "GPU type ID"
+            }
+          },
+          {
+            "name": "gpu_total",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Total GPU count"
+            }
+          },
+          {
+            "name": "listed",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether machine is listed"
+            }
+          },
+          {
+            "name": "secure_cloud",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether machine is in secure cloud"
+            }
+          },
+          {
+            "name": "data_center_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Data center ID"
+            }
+          },
+          {
+            "name": "location",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Location"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "gpu_types",
+      "description": "List available GPU types",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "GPU type ID"
+            }
+          },
+          {
+            "name": "display_name",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "GPU display name"
+            }
+          },
+          {
+            "name": "manufacturer",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "GPU manufacturer"
+            }
+          },
+          {
+            "name": "memory_in_gb",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Memory in GB"
+            }
+          },
+          {
+            "name": "cuda_cores",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "CUDA core count"
+            }
+          },
+          {
+            "name": "secure_cloud",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Available in secure cloud"
+            }
+          },
+          {
+            "name": "secure_price",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Secure cloud price"
+            }
+          },
+          {
+            "name": "community_price",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Community cloud price"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "data_centers",
+      "description": "List available data centers",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Data center ID"
+            }
+          },
+          {
+            "name": "name",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Data center name"
+            }
+          },
+          {
+            "name": "location",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Data center location"
+            }
+          },
+          {
+            "name": "global_network",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether global network is enabled"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "user",
+      "description": "Retrieve current user information",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "User ID"
+            }
+          },
+          {
+            "name": "pub_key",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "User's public SSH key"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "name": "pod",
+      "description": "Manage RunPod pods - create, update, stop, and terminate pods",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Pod ID (assigned after creation)"
+            }
+          },
+          {
+            "name": "name",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Pod name"
+            }
+          },
+          {
+            "name": "machine_id",
+            "string": {
+              "computed_optional_required": "optional",
+              "description": "Machine ID to deploy pod on (optional if gpu_type_id is specified)"
+            }
+          },
+          {
+            "name": "image_name",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Docker image name"
+            }
+          },
+          {
+            "name": "gpu_count",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "default": {
+                "static": 1
+              },
+              "description": "Number of GPUs (default: 1)"
+            }
+          },
+          {
+            "name": "gpu_type_id",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Specific GPU type ID (optional, will auto-select if not specified)"
+            }
+          },
+          {
+            "name": "cloud_type",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "default": {
+                "static": "COMMUNITY"
+              },
+              "description": "Cloud type: COMMUNITY, SECURE, or ALL"
+            }
+          },
+          {
+            "name": "docker_args",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Docker arguments"
+            }
+          },
+          {
+            "name": "env",
+            "list": {
+              "computed_optional_required": "computed_optional",
+              "element_type": {
+                "string": {}
+              },
+              "description": "Environment variables as ['KEY=VALUE', ...]"
+            }
+          },
+          {
+            "name": "port",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Main port for the pod"
+            }
+          },
+          {
+            "name": "ports",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Port configuration string"
+            }
+          },
+          {
+            "name": "volume_in_gb",
+            "float64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Volume size in GB"
+            }
+          },
+          {
+            "name": "volume_key",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Volume encryption key",
+              "sensitive": true
+            }
+          },
+          {
+            "name": "volume_mount_path",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Volume mount path"
+            }
+          },
+          {
+            "name": "container_disk_in_gb",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Container disk size in GB"
+            }
+          },
+          {
+            "name": "template_id",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "default": {
+                "static": ""
+              },
+              "description": "Pod template ID (optional, auto-select if not specified)"
+            }
+          },
+          {
+            "name": "stop_after",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Auto-stop timestamp (ISO 8601)"
+            }
+          },
+          {
+            "name": "terminate_after",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Auto-terminate timestamp (ISO 8601)"
+            }
+          },
+          {
+            "name": "start_jupyter",
+            "bool": {
+              "computed_optional_required": "computed_optional",
+              "default": {"static": false},
+              "description": "Start Jupyter notebook on boot"
+            }
+          },
+          {
+            "name": "start_ssh",
+            "bool": {
+              "computed_optional_required": "computed_optional",
+              "default": {"static": false},
+              "description": "Start SSH on boot"
+            }
+          },
+          {
+            "name": "bid_per_gpu",
+            "float64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Bid price per GPU for interruptible pods"
+            }
+          },
+          {
+            "name": "status",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Current pod status"
+            }
+          },
+          {
+            "name": "cost_per_hr",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Cost per hour"
+            }
+          },
+          {
+            "name": "created_at",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Creation timestamp"
+            }
+          },
+          {
+            "name": "cluster_ip",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Cluster IP address"
+            }
+          },
+          {
+            "name": "locked",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether pod is locked"
+            }
+          },
+          {
+            "name": "memory_in_gb",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Memory allocated in GB"
+            }
+          },
+          {
+            "name": "vcpu_count",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Virtual CPU count"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "pod_action",
+      "description": "Perform actions on a RunPod pod (stop, resume, terminate, reset)",
+      "schema": {
+        "attributes": [
+          {
+            "name": "pod_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "The pod ID to act on"
+            }
+          },
+          {
+            "name": "action",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Action to perform: stop, resume, terminate, reset"
+            }
+          },
+          {
+            "name": "status",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Status after action"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "machine",
+      "description": "Manage RunPod machines - list, bid, and configure machines",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Machine ID"
+            }
+          },
+          {
+            "name": "name",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Machine name"
+            }
+          },
+          {
+            "name": "gpu_type_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "GPU type ID"
+            }
+          },
+          {
+            "name": "gpu_count",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "default": {"static": 1},
+              "description": "Number of GPUs"
+            }
+          },
+          {
+            "name": "cpu_count",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Number of CPUs"
+            }
+          },
+          {
+            "name": "memory_in_gb",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Memory in GB"
+            }
+          },
+          {
+            "name": "disk_in_gb",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Disk size in GB"
+            }
+          },
+          {
+            "name": "data_center_id",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Data center ID"
+            }
+          },
+          {
+            "name": "location",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Location/country code"
+            }
+          },
+          {
+            "name": "secure_cloud",
+            "bool": {
+              "computed_optional_required": "computed_optional",
+              "default": {"static": false},
+              "description": "Use secure cloud"
+            }
+          },
+          {
+            "name": "listed",
+            "bool": {
+              "computed_optional_required": "computed_optional",
+              "default": {"static": true},
+              "description": "List machine for others to use"
+            }
+          },
+          {
+            "name": "host_price_per_gpu",
+            "float64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Host price per GPU"
+            }
+          },
+          {
+            "name": "bid_price_per_gpu",
+            "float64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Bid price per GPU"
+            }
+          },
+          {
+            "name": "verified",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether machine is verified"
+            }
+          },
+          {
+            "name": "maintenance_mode",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether in maintenance mode"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+# Terraform
+.terraform/
+.terraform.lock.hcl
+
+# Binary files
+terraform-provider-runpod
+terraform-provider-runpod_*
+
+# Build artifacts
+*.go?
