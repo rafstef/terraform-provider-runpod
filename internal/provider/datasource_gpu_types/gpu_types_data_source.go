@@ -1,6 +1,7 @@
 package datasource_gpu_types
 
 import (
+	"os"
 	"context"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
