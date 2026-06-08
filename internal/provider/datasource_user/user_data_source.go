@@ -1,6 +1,7 @@
 package datasource_user
 
 import (
+	"os"
 	"context"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"

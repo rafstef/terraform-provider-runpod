@@ -1,6 +1,7 @@
 package resource_pod_action
 
 import (
+	"os"
 	"context"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
