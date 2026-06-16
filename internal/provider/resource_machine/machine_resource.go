@@ -67,7 +67,7 @@ variables := map[string]interface{}{
 		}
 
 	apiKey := os.Getenv("RUNPOD_API_KEY")
-	runpodClient := client.NewRunPodClient(apiKey, "https://api.runpod.io/graphql")
+	runpodClient := client.NewRunPodClient(apiKey, client.GetGraphQLEndpoint())
 	result, err := runpodClient.Query(ctx, query, variables)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())
@@ -146,7 +146,7 @@ variables := map[string]interface{}{
 		}
 
 	apiKey := os.Getenv("RUNPOD_API_KEY")
-	runpodClient := client.NewRunPodClient(apiKey, "https://api.runpod.io/graphql")
+	runpodClient := client.NewRunPodClient(apiKey, client.GetGraphQLEndpoint())
 	result, err := runpodClient.Query(ctx, query, variables)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())

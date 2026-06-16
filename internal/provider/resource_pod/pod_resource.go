@@ -11,6 +11,8 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+
+	client "github.com/runpod/terraform-provider-runpod/internal/provider/client"
 )
 
 func NewPodResource() resource.Resource {
@@ -42,7 +44,7 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	url := "https://rest.runpod.io/v1/pods"
+	url := client.GetRestBaseURL() + "/pods"
 
 	// Build the REST API request body
 	// Use templateId for the PyTorch template
