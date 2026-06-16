@@ -45,8 +45,9 @@ func newProvider() provider.Provider {
 }
 
 type runpodProvider struct {
-	apiKey   string
-	endpoint string
+	apiKey     string
+	baseUrl    string
+	graphqlUrl string
 }
 
 func (p *runpodProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -64,6 +65,11 @@ func (p *runpodProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 				Description:         "RunPod API key",
 				MarkdownDescription: "RunPod API key. Can also be set via the `RUNPOD_API_KEY` environment variable.",
 			},
+			"base_url": schema.StringAttribute{
+				Optional:            true,
+				Description:         "RunPod API base URL",
+				MarkdownDescription: "RunPod API base URL. Can also be set via the `RUNPOD_BASE_URL` environment variable. Defaults to `https://rest.runpod.io/v1`.",
+			},
 		},
 	}
 }
@@ -78,12 +84,24 @@ func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		if val, ok := config["api_key"]; ok && !val.IsNull() && !val.IsUnknown() {
 			p.apiKey = val.ValueString()
 		}
+		if val, ok := config["base_url"]; ok && !val.IsNull() && !val.IsUnknown() {
+			p.baseUrl = val.ValueString()
+		}
 	}
 
 	// Fall back to environment variable
 	if p.apiKey == "" {
 		p.apiKey = os.Getenv("RUNPOD_API_KEY")
 	}
+	if p.baseUrl == "" {
+		p.baseUrl = os.Getenv("RUNPOD_BASE_URL")
+	}
+
+	// Set defaults if still empty
+	if p.baseUrl == "" {
+		p.baseUrl = "https://rest.runpod.io/v1"
+	}
+	p.graphqlUrl = "https://api.runpod.io/graphql"
 
 	if p.apiKey == "" {
 		resp.Diagnostics.AddError(
@@ -94,8 +112,8 @@ func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	}
 
 	log.Printf("Using API key: %s\n", p.apiKey[:8]+"...")
-	p.endpoint = "https://rest.runpod.io/v1"
-	log.Printf("Provider configured with endpoint: %s\n", p.endpoint)
+	log.Printf("API base URL: %s\n", p.baseUrl)
+	log.Printf("GraphQL URL: %s\n", p.graphqlUrl)
 }
 
 func (p *runpodProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
