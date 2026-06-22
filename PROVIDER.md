@@ -44,7 +44,7 @@ Create and manage RunPod pods.
 - `name` (Optional) - Pod name
 - `gpu_count` (Optional, default=1) - Number of GPUs
 - `gpu_type_id` (Optional) - Specific GPU type ID
-- `cloud_type` (Optional, default="COMMUNITY") - Cloud type: COMMUNITY, SECURE, or ALL
+- `cloud_type` (Optional, default="SECURE") - Cloud type: COMMUNITY, SECURE, or ALL
 - `docker_args` (Optional) - Docker arguments
 - `env` (Optional) - Environment variables
 - `port` (Optional) - Main port for the pod

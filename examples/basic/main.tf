@@ -13,7 +13,7 @@ variable "machine_id" {
 variable "image_name" {
   type        = string
   description = "Docker image name"
-  default     = "runpod/miniconda:py3.10-cuda11.8.0"
+  default     = "runpod/pytorch:1.0.7-cu1281-torch291-ubuntu2404"
 }
 
 variable "pod_name" {
@@ -43,7 +43,7 @@ variable "start_jupyter" {
 terraform {
   required_providers {
     runpod = {
-      source = "hashicorp/runpod"
+      source = "runpod/runpod"
     }
   }
 }

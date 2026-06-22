@@ -6,7 +6,6 @@ import (
 	"context"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -21,12 +20,11 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Bid price per GPU for interruptible pods",
 				MarkdownDescription: "Bid price per GPU for interruptible pods",
 			},
-			"cloud_type": schema.StringAttribute{
+"cloud_type": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
 				Description:         "Cloud type: COMMUNITY, SECURE, or ALL",
 				MarkdownDescription: "Cloud type: COMMUNITY, SECURE, or ALL",
-				Default:             stringdefault.StaticString("COMMUNITY"),
 			},
 			"cluster_ip": schema.StringAttribute{
 				Computed:            true,
@@ -148,7 +146,6 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 				Computed:            true,
 				Description:         "Pod template ID (optional, auto-select if not specified)",
 				MarkdownDescription: "Pod template ID (optional, auto-select if not specified)",
-				Default:             stringdefault.StaticString(""),
 			},
 			"terminate_after": schema.StringAttribute{
 				Optional:            true,
