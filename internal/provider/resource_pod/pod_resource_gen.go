@@ -79,9 +79,10 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 				MarkdownDescription: "Pod ID (assigned after creation)",
 			},
 			"image_name": schema.StringAttribute{
-				Required:            true,
-				Description:         "Docker image name",
-				MarkdownDescription: "Docker image name",
+				Optional:            true,
+				Computed:            true,
+				Description:         "Docker image name (required if template_id is not specified)",
+				MarkdownDescription: "Docker image name (required if template_id is not specified)",
 			},
 			"locked": schema.BoolAttribute{
 				Computed:            true,

@@ -37,6 +37,25 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
+	hasTemplateId := !config.TemplateId.IsNull() && config.TemplateId.ValueString() != ""
+	hasImageName := !config.ImageName.IsNull() && config.ImageName.ValueString() != ""
+
+	if hasTemplateId && hasImageName {
+		resp.Diagnostics.AddError(
+			"Invalid Configuration",
+			"Cannot specify both template_id and image_name. Use template_id for templates, or image_name for direct image deployment.",
+		)
+		return
+	}
+
+	if !hasTemplateId && !hasImageName {
+		resp.Diagnostics.AddError(
+			"Missing Required Field",
+			"Must specify either template_id or image_name.",
+		)
+		return
+	}
+
 	// Use REST API endpoint
 	apiKey := os.Getenv("RUNPOD_API_KEY")
 	if apiKey == "" {
@@ -52,7 +71,7 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		"name":     config.Name.ValueString(),
 	}
 
-	if !config.TemplateId.IsNull() && config.TemplateId.ValueString() != "" {
+	if hasTemplateId {
 		body["templateId"] = config.TemplateId.ValueString()
 	} else {
 		body["imageName"] = config.ImageName.ValueString()

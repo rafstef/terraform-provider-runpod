@@ -517,11 +517,12 @@
               "description": "Machine ID to deploy pod on (optional if gpu_type_id is specified)"
             }
           },
-          {
-            "name": "image_name",
-            "string": {
-              "computed_optional_required": "required",
-              "description": "Docker image name"
+{
+              "name": "image_name",
+              "string": {
+                "computed_optional_required": "computed_optional",
+                "description": "Docker image name (required if template_id is not specified)"
+              }
             }
           },
           {
