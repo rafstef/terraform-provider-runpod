@@ -47,13 +47,23 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 	url := client.GetRestBaseURL() + "/pods"
 
 	// Build the REST API request body
-	// Use templateId for the PyTorch template
 	body := map[string]interface{}{
-		"templateId":    config.TemplateId.ValueString(),
-		"gpuCount":      int64(config.GpuCount.ValueInt64()),
-		"imageName":     config.ImageName.ValueString(),
-		"name":          config.Name.ValueString(),
-		"volumeInGb":    int64(config.VolumeInGb.ValueFloat64()),
+		"gpuCount": int64(config.GpuCount.ValueInt64()),
+		"name":     config.Name.ValueString(),
+	}
+
+	if !config.TemplateId.IsNull() && config.TemplateId.ValueString() != "" {
+		body["templateId"] = config.TemplateId.ValueString()
+	} else {
+		body["imageName"] = config.ImageName.ValueString()
+	}
+
+	if !config.CloudType.IsNull() && config.CloudType.ValueString() != "" {
+		body["cloudType"] = config.CloudType.ValueString()
+	}
+
+	if config.VolumeInGb.ValueFloat64() > 0 {
+		body["volumeInGb"] = int64(config.VolumeInGb.ValueFloat64())
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -171,6 +181,13 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	state.MemoryInGb = types.Float64Value(result["memoryInGb"].(float64))
 	state.VolumeInGb = types.Float64Value(result["volumeInGb"].(float64))
 	state.ContainerDiskInGb = types.Int64Value(int64(result["containerDiskInGb"].(float64)))
+
+	if result["templateId"] != nil {
+		state.TemplateId = types.StringValue(result["templateId"].(string))
+	}
+	if result["cloudType"] != nil {
+		state.CloudType = types.StringValue(result["cloudType"].(string))
+	}
 
 	diags = resp.State.Set(ctx, &state)
 	if diags.HasError() {

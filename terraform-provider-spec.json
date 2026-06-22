@@ -541,14 +541,12 @@
               "description": "Specific GPU type ID (optional, will auto-select if not specified)"
             }
           },
-          {
-            "name": "cloud_type",
-            "string": {
-              "computed_optional_required": "computed_optional",
-              "default": {
-                "static": "COMMUNITY"
-              },
-              "description": "Cloud type: COMMUNITY, SECURE, or ALL"
+{
+              "name": "cloud_type",
+              "string": {
+                "computed_optional_required": "computed_optional",
+                "description": "Cloud type: COMMUNITY, SECURE, or ALL"
+              }
             }
           },
           {
@@ -611,14 +609,12 @@
               "description": "Container disk size in GB"
             }
           },
-          {
-            "name": "template_id",
-            "string": {
-              "computed_optional_required": "computed_optional",
-              "default": {
-                "static": ""
-              },
-              "description": "Pod template ID (optional, auto-select if not specified)"
+{
+              "name": "template_id",
+              "string": {
+                "computed_optional_required": "computed_optional",
+                "description": "Pod template ID (optional, auto-select if not specified)"
+              }
             }
           },
           {
