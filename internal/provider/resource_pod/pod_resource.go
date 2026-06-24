@@ -85,6 +85,10 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		body["volumeInGb"] = int64(config.VolumeInGb.ValueFloat64())
 	}
 
+	if !config.NetworkVolumeId.IsNull() && config.NetworkVolumeId.ValueString() != "" {
+		body["networkVolumeId"] = config.NetworkVolumeId.ValueString()
+	}
+
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to marshal request body: %v", err))
@@ -225,6 +229,14 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	if result["cloudType"] != nil {
 		if val, ok := result["cloudType"].(string); ok && val != "" {
 			state.CloudType = types.StringValue(val)
+		}
+	}
+
+	if result["networkVolume"] != nil {
+		if nv, ok := result["networkVolume"].(map[string]interface{}); ok {
+			if id, ok := nv["id"].(string); ok && id != "" {
+				state.NetworkVolumeId = types.StringValue(id)
+			}
 		}
 	}
 
