@@ -178,6 +178,11 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Volume mount path",
 				MarkdownDescription: "Volume mount path",
 			},
+			"network_volume_id": schema.StringAttribute{
+				Optional:            true,
+				Description:         "Network volume ID to attach to the pod",
+				MarkdownDescription: "Network volume ID to attach to the pod. When attached, the network volume replaces the pod volume.",
+			},
 		},
 	}
 }
@@ -211,4 +216,5 @@ type PodModel struct {
 	VolumeInGb        types.Float64 `tfsdk:"volume_in_gb"`
 	VolumeKey         types.String  `tfsdk:"volume_key"`
 	VolumeMountPath   types.String  `tfsdk:"volume_mount_path"`
+  NetworkVolumeId   types.String  `tfsdk:"network_volume_id"`
 }
