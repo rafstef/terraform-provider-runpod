@@ -69,44 +69,40 @@ variables := map[string]interface{}{
 		return
 	}
 
-	if data, ok := result["data"].(map[string]interface{}); ok {
-		if pod, ok := data["pod"].(map[string]interface{}); ok {
-			envListValue := types.List{}
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
+	if pod, ok := result["pod"].(map[string]interface{}); ok {
+		envListValue := types.List{}
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
+		}
 
-			model := PodModel{
-				Id:                config.Id,
-				Name:              types.StringValue(pod["name"].(string)),
-				Status:            types.StringValue(pod["status"].(string)),
-				DesiredStatus:     types.StringValue(pod["desiredStatus"].(string)),
-				ImageName:         types.StringValue(pod["imageName"].(string)),
-				MachineId:         types.StringValue(pod["machineId"].(string)),
-				MachineType:       types.StringValue(pod["machineType"].(string)),
-				GpuTypeId:         types.StringValue(pod["gpuTypeId"].(string)),
-				GpuCount:          types.Int64Value(int64(pod["gpuCount"].(float64))),
-				CostPerHr:         types.Float64Value(pod["costPerHr"].(float64)),
-				MemoryInGb:        types.Float64Value(pod["memoryInGb"].(float64)),
-				VolumeInGb:        types.Float64Value(pod["volumeInGb"].(float64)),
-				VolumeMountPath:   types.StringValue(pod["volumeMountPath"].(string)),
-				Ports:             types.StringValue(pod["ports"].(string)),
-				CreatedAt:         types.StringValue(pod["created_at"].(string)),
-				DockerArgs:        types.StringValue(pod["dockerArgs"].(string)),
-				Env:               envListValue,
-				TemplateId:        types.StringValue(pod["templateId"].(string)),
-				ContainerDiskInGb: types.Int64Value(int64(pod["containerDiskInGb"].(float64))),
-			}
-			diags = resp.State.Set(ctx, &model)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-		} else {
-			resp.Diagnostics.AddError("API Error", "Pod not found in response")
+		model := PodModel{
+			Id:                config.Id,
+			Name:              types.StringValue(pod["name"].(string)),
+			Status:            types.StringValue(pod["status"].(string)),
+			DesiredStatus:     types.StringValue(pod["desiredStatus"].(string)),
+			ImageName:         types.StringValue(pod["imageName"].(string)),
+			MachineId:         types.StringValue(pod["machineId"].(string)),
+			MachineType:       types.StringValue(pod["machineType"].(string)),
+			GpuTypeId:         types.StringValue(pod["gpuTypeId"].(string)),
+			GpuCount:          types.Int64Value(int64(pod["gpuCount"].(float64))),
+			CostPerHr:         types.Float64Value(pod["costPerHr"].(float64)),
+			MemoryInGb:        types.Float64Value(pod["memoryInGb"].(float64)),
+			VolumeInGb:        types.Float64Value(pod["volumeInGb"].(float64)),
+			VolumeMountPath:   types.StringValue(pod["volumeMountPath"].(string)),
+			Ports:             types.StringValue(pod["ports"].(string)),
+			CreatedAt:         types.StringValue(pod["created_at"].(string)),
+			DockerArgs:        types.StringValue(pod["dockerArgs"].(string)),
+			Env:               envListValue,
+			TemplateId:        types.StringValue(pod["templateId"].(string)),
+			ContainerDiskInGb: types.Int64Value(int64(pod["containerDiskInGb"].(float64))),
+		}
+		diags = resp.State.Set(ctx, &model)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
 		}
 	} else {
-		resp.Diagnostics.AddError("API Error", "Failed to get data from response")
+		resp.Diagnostics.AddError("API Error", "Pod not found in response")
 	}
 }

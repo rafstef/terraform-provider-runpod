@@ -42,21 +42,17 @@ func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	if data, ok := result["data"].(map[string]interface{}); ok {
-		if user, ok := data["user"].(map[string]interface{}); ok {
-			model := UserModel{
-				Id:     types.StringValue(user["id"].(string)),
-				PubKey: types.StringValue(user["pubKey"].(string)),
-			}
-			diags := resp.State.Set(ctx, &model)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-		} else {
-			resp.Diagnostics.AddError("API Error", "User not found in response")
+	if user, ok := result["user"].(map[string]interface{}); ok {
+		model := UserModel{
+			Id:     types.StringValue(user["id"].(string)),
+			PubKey: types.StringValue(user["pubKey"].(string)),
+		}
+		diags := resp.State.Set(ctx, &model)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
 		}
 	} else {
-		resp.Diagnostics.AddError("API Error", "Failed to get data from response")
+		resp.Diagnostics.AddError("API Error", "User not found in response")
 	}
 }

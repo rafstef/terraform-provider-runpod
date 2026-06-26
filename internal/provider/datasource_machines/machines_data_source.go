@@ -48,32 +48,28 @@ func (d *MachinesDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
-	if data, ok := result["data"].(map[string]interface{}); ok {
-		if machines, ok := data["machines"].([]interface{}); ok {
-			models := make([]MachinesModel, len(machines))
-			for i, machine := range machines {
-				if machineMap, ok := machine.(map[string]interface{}); ok {
-					models[i] = MachinesModel{
-						Id:           types.StringValue(machineMap["id"].(string)),
-						Name:         types.StringValue(machineMap["name"].(string)),
-						Location:     types.StringValue(machineMap["location"].(string)),
-						Listed:       types.BoolValue(machineMap["listed"].(bool)),
-						GpuTypeId:    types.StringValue(machineMap["gpuType"].(string)),
-						GpuTotal:     types.Int64Value(int64(machineMap["gpuTotal"].(float64))),
-						SecureCloud:  types.BoolValue(machineMap["secureCloud"].(bool)),
-						DataCenterId: types.StringValue(machineMap["dataCenterId"].(string)),
-					}
+	if machines, ok := result["machines"].([]interface{}); ok {
+		models := make([]MachinesModel, len(machines))
+		for i, machine := range machines {
+			if machineMap, ok := machine.(map[string]interface{}); ok {
+				models[i] = MachinesModel{
+					Id:           types.StringValue(machineMap["id"].(string)),
+					Name:         types.StringValue(machineMap["name"].(string)),
+					Location:     types.StringValue(machineMap["location"].(string)),
+					Listed:       types.BoolValue(machineMap["listed"].(bool)),
+					GpuTypeId:    types.StringValue(machineMap["gpuType"].(string)),
+					GpuTotal:     types.Int64Value(int64(machineMap["gpuTotal"].(float64))),
+					SecureCloud:  types.BoolValue(machineMap["secureCloud"].(bool)),
+					DataCenterId: types.StringValue(machineMap["dataCenterId"].(string)),
 				}
 			}
-			diags := resp.State.Set(ctx, &models)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-		} else {
-			resp.Diagnostics.AddError("API Error", "Failed to parse machines from response")
+		}
+		diags := resp.State.Set(ctx, &models)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
 		}
 	} else {
-		resp.Diagnostics.AddError("API Error", "Failed to get data from response")
+		resp.Diagnostics.AddError("API Error", "Failed to parse machines from response")
 	}
 }
