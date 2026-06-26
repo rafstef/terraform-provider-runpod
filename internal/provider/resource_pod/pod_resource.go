@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -88,6 +89,38 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 
 	if !config.NetworkVolumeId.IsNull() && config.NetworkVolumeId.ValueString() != "" {
 		body["networkVolumeId"] = config.NetworkVolumeId.ValueString()
+	}
+
+	if !config.DockerEntrypoint.IsNull() && len(config.DockerEntrypoint.Elements()) > 0 {
+		entrypoint := make([]string, 0)
+		for _, element := range config.DockerEntrypoint.Elements() {
+			if strVal, ok := element.(types.String); ok {
+				entrypoint = append(entrypoint, strVal.ValueString())
+			}
+		}
+		if len(entrypoint) > 0 {
+			body["dockerEntrypoint"] = entrypoint
+		}
+	}
+
+	if !config.DockerStartCmd.IsNull() && len(config.DockerStartCmd.Elements()) > 0 {
+		startCmd := make([]string, 0)
+		for _, element := range config.DockerStartCmd.Elements() {
+			if strVal, ok := element.(types.String); ok {
+				startCmd = append(startCmd, strVal.ValueString())
+			}
+		}
+		if len(startCmd) > 0 {
+			body["dockerStartCmd"] = startCmd
+		}
+	}
+
+	if !config.Interruptible.IsNull() {
+		body["interruptible"] = config.Interruptible.ValueBool()
+	}
+
+	if !config.VolumeEncrypted.IsNull() {
+		body["volumeEncrypted"] = config.VolumeEncrypted.ValueBool()
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -239,6 +272,46 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 				state.NetworkVolumeId = types.StringValue(id)
 			}
 		}
+	}
+
+	if val, ok := result["dockerEntrypoint"].([]interface{}); ok {
+		entrypointList := make([]attr.Value, 0)
+		for _, v := range val {
+			if vStr, ok := v.(string); ok {
+				entrypointList = append(entrypointList, types.StringValue(vStr))
+			}
+		}
+		if len(entrypointList) > 0 {
+			state.DockerEntrypoint, diags = types.ListValue(types.StringType, entrypointList)
+			if diags.HasError() {
+				resp.Diagnostics.Append(diags...)
+				return
+			}
+		}
+	}
+
+	if val, ok := result["dockerStartCmd"].([]interface{}); ok {
+		startCmdList := make([]attr.Value, 0)
+		for _, v := range val {
+			if vStr, ok := v.(string); ok {
+				startCmdList = append(startCmdList, types.StringValue(vStr))
+			}
+		}
+		if len(startCmdList) > 0 {
+			state.DockerStartCmd, diags = types.ListValue(types.StringType, startCmdList)
+			if diags.HasError() {
+				resp.Diagnostics.Append(diags...)
+				return
+			}
+		}
+	}
+
+	if val, ok := result["interruptible"].(bool); ok {
+		state.Interruptible = types.BoolValue(val)
+	}
+
+	if val, ok := result["volumeEncrypted"].(bool); ok {
+		state.VolumeEncrypted = types.BoolValue(val)
 	}
 
 	diags = resp.State.Set(ctx, &state)
