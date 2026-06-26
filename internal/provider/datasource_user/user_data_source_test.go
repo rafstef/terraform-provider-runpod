@@ -4,35 +4,41 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 )
 
-// Characterization of the systemic GraphQL double-unwrap (CE-1652).
-func TestUserRead_DoubleUnwrap(t *testing.T) {
+// Positive regression for CE-1652 (fixed by PR #20).
+// After Query strips the outer {"data":...} envelope, Read reads result["user"]
+// and dereferences user["id"] and user["pubKey"] into state. This asserts the
+// fixed behavior: no diagnostics error and state is populated from the response.
+func TestUserRead_PopulatesState(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"data":{"myself":{"id":"u1"}}}`))
+		_, _ = w.Write([]byte(`{"data":{"user":{"id":"u1","pubKey":"ssh-ed25519 AAAA test@runpod"}}}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_GRAPHQL_URL", srv.URL)
 
-	resp := &datasource.ReadResponse{State: tfsdk.State{Schema: UserDataSourceSchema(context.Background())}}
-	(&UserDataSource{}).Read(context.Background(), datasource.ReadRequest{}, resp)
+	ctx := context.Background()
+	resp := &datasource.ReadResponse{State: tfsdk.State{Schema: UserDataSourceSchema(ctx)}}
+	(&UserDataSource{}).Read(ctx, datasource.ReadRequest{}, resp)
 
-	if !resp.Diagnostics.HasError() {
-		t.Fatal("expected double-unwrap failure (CE-1652); if Read now succeeds the bug is fixed — flip to assert the user fields")
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected no error after CE-1652 fix, got: %v", resp.Diagnostics)
 	}
-	found := false
-	for _, d := range resp.Diagnostics.Errors() {
-		if strings.Contains(d.Detail(), "Failed to get data from response") {
-			found = true
-		}
+
+	var model UserModel
+	diags := resp.State.Get(ctx, &model)
+	if diags.HasError() {
+		t.Fatalf("failed to read state: %v", diags)
 	}
-	if !found {
-		t.Errorf("expected 'Failed to get data from response', got: %v", resp.Diagnostics)
+	if model.Id.ValueString() != "u1" {
+		t.Errorf("expected id %q, got %q", "u1", model.Id.ValueString())
+	}
+	if model.PubKey.ValueString() != "ssh-ed25519 AAAA test@runpod" {
+		t.Errorf("expected pubKey %q, got %q", "ssh-ed25519 AAAA test@runpod", model.PubKey.ValueString())
 	}
 }

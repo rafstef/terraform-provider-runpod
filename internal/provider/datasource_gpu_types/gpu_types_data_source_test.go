@@ -11,12 +11,19 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 )
 
-// TestGpuTypesRead_DoubleUnwrap shows that CE-1652 (the result["data"] double-
-// unwrap) is not limited to the resources — the GraphQL data sources have it
-// too. client.Query() already returns the inner data, so result["data"] is nil
-// and Read errors with "Failed to get data from response" even on a valid
-// response. Until CE-1652 is fixed, this data source always fails.
-func TestGpuTypesRead_DoubleUnwrap(t *testing.T) {
+// CE-1652 (GraphQL double-unwrap) is FIXED by PR #20: client.Query() returns the
+// inner "data" map and Read() reads result["gpus"] directly. This data source is
+// still non-functional because of a SEPARATE, pre-existing bug that #20 did not
+// touch: Read builds a []GpuTypesModel slice and calls State.Set against the
+// single-object root schema in gpu_types_data_source_gen.go, which the framework
+// rejects ("must be an attr.TypeWithElementType ... Value Conversion Error").
+//
+// This characterizes the current state: the old double-unwrap error is gone
+// (proving the #20 fix reached this data source), but Read still errors in
+// State.Set. When the schema/Read shape is fixed (schema becomes a list/nested
+// attribute, or Read sets a single object), State.Set will succeed — flip this
+// to assert the parsed gpu list.
+func TestGpuTypesRead_BlockedBySliceSchemaMismatch(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"data":{"gpus":[{"id":"g1","displayName":"A100","manufacturer":"NVIDIA","cuda_cores":6912,"memory_in_gb":80,"community_price":1.0,"secure_price":2.0,"secure_cloud":true}]}}`))
 	}))
@@ -24,20 +31,19 @@ func TestGpuTypesRead_DoubleUnwrap(t *testing.T) {
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_GRAPHQL_URL", srv.URL)
 
-	sch := GpuTypesDataSourceSchema(context.Background())
-	resp := &datasource.ReadResponse{State: tfsdk.State{Schema: sch}}
-	(&GpuTypesDataSource{}).Read(context.Background(), datasource.ReadRequest{}, resp)
+	ctx := context.Background()
+	resp := &datasource.ReadResponse{State: tfsdk.State{Schema: GpuTypesDataSourceSchema(ctx)}}
+	(&GpuTypesDataSource{}).Read(ctx, datasource.ReadRequest{}, resp)
 
 	if !resp.Diagnostics.HasError() {
-		t.Fatal("expected CE-1652 double-unwrap failure; if Read now succeeds, CE-1652 is FIXED — flip to assert the gpu list")
+		t.Fatal("Read now succeeds — the slice/object schema bug looks fixed; flip this to assert the gpu list")
 	}
-	found := false
+	// The CE-1652 unwrap-failure branch reported "Failed to ... from response".
+	// After PR #20 that must be gone; the only remaining error is the unrelated
+	// State.Set slice/object conversion.
 	for _, d := range resp.Diagnostics.Errors() {
-		if strings.Contains(d.Detail(), "Failed to get data from response") {
-			found = true
+		if strings.Contains(d.Detail(), "Failed to") {
+			t.Fatalf("CE-1652 regression: double-unwrap is back: %v", resp.Diagnostics)
 		}
-	}
-	if !found {
-		t.Errorf("expected 'Failed to get data from response', got: %v", resp.Diagnostics)
 	}
 }
