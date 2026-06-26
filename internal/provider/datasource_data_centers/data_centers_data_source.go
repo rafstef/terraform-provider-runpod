@@ -44,28 +44,24 @@ func (d *DataCentersDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
-	if data, ok := result["data"].(map[string]interface{}); ok {
-		if dataCenters, ok := data["dataCenter"].([]interface{}); ok {
-			models := make([]DataCentersModel, len(dataCenters))
-			for i, dc := range dataCenters {
-				if dcMap, ok := dc.(map[string]interface{}); ok {
-					models[i] = DataCentersModel{
-						Id:            types.StringValue(dcMap["id"].(string)),
-						Name:          types.StringValue(dcMap["name"].(string)),
-						Location:      types.StringValue(dcMap["location"].(string)),
-						GlobalNetwork: types.BoolValue(dcMap["globalNetwork"].(bool)),
-					}
+	if dataCenters, ok := result["dataCenter"].([]interface{}); ok {
+		models := make([]DataCentersModel, len(dataCenters))
+		for i, dc := range dataCenters {
+			if dcMap, ok := dc.(map[string]interface{}); ok {
+				models[i] = DataCentersModel{
+					Id:            types.StringValue(dcMap["id"].(string)),
+					Name:          types.StringValue(dcMap["name"].(string)),
+					Location:      types.StringValue(dcMap["location"].(string)),
+					GlobalNetwork: types.BoolValue(dcMap["globalNetwork"].(bool)),
 				}
 			}
-			diags := resp.State.Set(ctx, &models)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-		} else {
-			resp.Diagnostics.AddError("API Error", "Failed to parse data centers from response")
+		}
+		diags := resp.State.Set(ctx, &models)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
 		}
 	} else {
-		resp.Diagnostics.AddError("API Error", "Failed to get data from response")
+		resp.Diagnostics.AddError("API Error", "Failed to parse data centers from response")
 	}
 }

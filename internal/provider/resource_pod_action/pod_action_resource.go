@@ -96,36 +96,41 @@ variables := map[string]interface{}{
 		return
 	}
 
-	if data, ok := result["data"].(map[string]interface{}); ok {
-		var status string
-		switch action {
-		case "stop":
-			if podStop, ok := data["podStop"].(map[string]interface{}); ok {
-				status = podStop["status"].(string)
-			}
-		case "resume":
-			if podResume, ok := data["podResume"].(map[string]interface{}); ok {
-				status = podResume["status"].(string)
-			}
-		case "restart":
-			if podRestart, ok := data["podRestart"].(map[string]interface{}); ok {
-				status = podRestart["status"].(string)
-			}
-		case "reset":
-			if podReset, ok := data["podReset"].(map[string]interface{}); ok {
-				status = podReset["status"].(string)
-			}
-		case "terminate":
-			if podTerminate, ok := data["podTerminate"].(map[string]interface{}); ok {
-				status = podTerminate["status"].(string)
+	var status string
+	switch action {
+	case "stop":
+		if podStop, ok := result["podStop"].(map[string]interface{}); ok {
+			if podStatus, ok := podStop["status"].(string); ok {
+				status = podStatus
 			}
 		}
-
-		config.Status = types.StringValue(status)
-	} else {
-		resp.Diagnostics.AddError("API Error", "Failed to get data from response")
-		return
+	case "resume":
+		if podResume, ok := result["podResume"].(map[string]interface{}); ok {
+			if podStatus, ok := podResume["status"].(string); ok {
+				status = podStatus
+			}
+		}
+	case "restart":
+		if podRestart, ok := result["podRestart"].(map[string]interface{}); ok {
+			if podStatus, ok := podRestart["status"].(string); ok {
+				status = podStatus
+			}
+		}
+	case "reset":
+		if podReset, ok := result["podReset"].(map[string]interface{}); ok {
+			if podStatus, ok := podReset["status"].(string); ok {
+				status = podStatus
+			}
+		}
+	case "terminate":
+		if podTerminate, ok := result["podTerminate"].(map[string]interface{}); ok {
+			if podStatus, ok := podTerminate["status"].(string); ok {
+				status = podStatus
+			}
+		}
 	}
+
+	config.Status = types.StringValue(status)
 
 	diags = resp.State.Set(ctx, &config)
 	if diags.HasError() {

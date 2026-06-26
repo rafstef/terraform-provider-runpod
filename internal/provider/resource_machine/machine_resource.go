@@ -74,20 +74,15 @@ variables := map[string]interface{}{
 		return
 	}
 
-	if data, ok := result["data"].(map[string]interface{}); ok {
-		if machineCreate, ok := data["machineCreate"].(map[string]interface{}); ok {
-			if machineID, ok := machineCreate["id"].(string); ok {
-				config.Id = types.StringValue(machineID)
-			} else {
-				resp.Diagnostics.AddError("API Error", "Failed to get machine ID from response")
-				return
-			}
+	if machineCreate, ok := result["machineCreate"].(map[string]interface{}); ok {
+		if machineID, ok := machineCreate["id"].(string); ok {
+			config.Id = types.StringValue(machineID)
 		} else {
-			resp.Diagnostics.AddError("API Error", "machineCreate not in response")
+			resp.Diagnostics.AddError("API Error", "Failed to get machine ID from response")
 			return
 		}
 	} else {
-		resp.Diagnostics.AddError("API Error", "data not in response")
+		resp.Diagnostics.AddError("API Error", "machineCreate not in response")
 		return
 	}
 
@@ -153,26 +148,21 @@ variables := map[string]interface{}{
 		return
 	}
 
-	if data, ok := result["data"].(map[string]interface{}); ok {
-		if machine, ok := data["machine"].(map[string]interface{}); ok {
-			config.Name = types.StringValue(machine["name"].(string))
-			config.GpuCount = types.Int64Value(int64(machine["gpuCount"].(float64)))
-			config.GpuTypeId = types.StringValue(machine["gpuType"].(string))
-			config.CpuCount = types.Int64Value(int64(machine["cpuCount"].(float64)))
-			config.MemoryInGb = types.Int64Value(int64(machine["memoryInGb"].(float64)))
-			config.DiskInGb = types.Int64Value(int64(machine["diskSizeInGb"].(float64)))
-			config.Location = types.StringValue(machine["region"].(string))
-			config.Listed = types.BoolValue(machine["listed"].(bool))
-			config.SecureCloud = types.BoolValue(machine["secureCloud"].(bool))
-			config.MaintenanceMode = types.BoolValue(machine["maintenanceMode"].(bool))
-			config.Verified = types.BoolValue(machine["verified"].(bool))
-			config.HostPricePerGpu = types.Float64Value(machine["hostPricePerGpu"].(float64))
-		} else {
-			resp.Diagnostics.AddError("API Error", "Machine not found in response")
-			return
-		}
+	if machine, ok := result["machine"].(map[string]interface{}); ok {
+		config.Name = types.StringValue(machine["name"].(string))
+		config.GpuCount = types.Int64Value(int64(machine["gpuCount"].(float64)))
+		config.GpuTypeId = types.StringValue(machine["gpuType"].(string))
+		config.CpuCount = types.Int64Value(int64(machine["cpuCount"].(float64)))
+		config.MemoryInGb = types.Int64Value(int64(machine["memoryInGb"].(float64)))
+		config.DiskInGb = types.Int64Value(int64(machine["diskSizeInGb"].(float64)))
+		config.Location = types.StringValue(machine["region"].(string))
+		config.Listed = types.BoolValue(machine["listed"].(bool))
+		config.SecureCloud = types.BoolValue(machine["secureCloud"].(bool))
+		config.MaintenanceMode = types.BoolValue(machine["maintenanceMode"].(bool))
+		config.Verified = types.BoolValue(machine["verified"].(bool))
+		config.HostPricePerGpu = types.Float64Value(machine["hostPricePerGpu"].(float64))
 	} else {
-		resp.Diagnostics.AddError("API Error", "Failed to get data from response")
+		resp.Diagnostics.AddError("API Error", "Machine not found in response")
 		return
 	}
 

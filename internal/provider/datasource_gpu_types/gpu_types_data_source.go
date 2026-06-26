@@ -48,32 +48,28 @@ func (d *GpuTypesDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
-	if data, ok := result["data"].(map[string]interface{}); ok {
-		if gpus, ok := data["gpus"].([]interface{}); ok {
-			models := make([]GpuTypesModel, len(gpus))
-			for i, gpu := range gpus {
-				if gpuMap, ok := gpu.(map[string]interface{}); ok {
-					models[i] = GpuTypesModel{
-						Id:             types.StringValue(gpuMap["id"].(string)),
-						DisplayName:    types.StringValue(gpuMap["displayName"].(string)),
-						Manufacturer:   types.StringValue(gpuMap["manufacturer"].(string)),
-						CudaCores:      types.Int64Value(int64(gpuMap["cuda_cores"].(float64))),
-						MemoryInGb:     types.Int64Value(int64(gpuMap["memory_in_gb"].(float64))),
-						CommunityPrice: types.Float64Value(gpuMap["community_price"].(float64)),
-						SecurePrice:    types.Float64Value(gpuMap["secure_price"].(float64)),
-						SecureCloud:    types.BoolValue(gpuMap["secure_cloud"].(bool)),
-					}
+	if gpus, ok := result["gpus"].([]interface{}); ok {
+		models := make([]GpuTypesModel, len(gpus))
+		for i, gpu := range gpus {
+			if gpuMap, ok := gpu.(map[string]interface{}); ok {
+				models[i] = GpuTypesModel{
+					Id:             types.StringValue(gpuMap["id"].(string)),
+					DisplayName:    types.StringValue(gpuMap["displayName"].(string)),
+					Manufacturer:   types.StringValue(gpuMap["manufacturer"].(string)),
+					CudaCores:      types.Int64Value(int64(gpuMap["cuda_cores"].(float64))),
+					MemoryInGb:     types.Int64Value(int64(gpuMap["memory_in_gb"].(float64))),
+					CommunityPrice: types.Float64Value(gpuMap["community_price"].(float64)),
+					SecurePrice:    types.Float64Value(gpuMap["secure_price"].(float64)),
+					SecureCloud:    types.BoolValue(gpuMap["secure_cloud"].(bool)),
 				}
 			}
-			diags := resp.State.Set(ctx, &models)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-		} else {
-			resp.Diagnostics.AddError("API Error", "Failed to parse GPU types from response")
+		}
+		diags := resp.State.Set(ctx, &models)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
 		}
 	} else {
-		resp.Diagnostics.AddError("API Error", "Failed to get data from response")
+		resp.Diagnostics.AddError("API Error", "Failed to parse GPU types from response")
 	}
 }
