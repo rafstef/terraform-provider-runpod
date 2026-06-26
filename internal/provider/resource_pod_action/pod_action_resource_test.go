@@ -25,15 +25,15 @@ func actionConfig(t *testing.T, m PodActionModel) tfsdk.Config {
 	return tfsdk.Config{Schema: sch, Raw: st.Raw}
 }
 
-// TestPodActionCreate_DoubleUnwrap is a characterization test for bug CE-1652.
-// client.Query() already returns the *inner* GraphQL `data` object, but
-// PodActionResource.Create does result["data"].(map) again — a second unwrap
-// that is always nil. So even a perfectly valid GraphQL response makes Create
-// fail with "Failed to get data from response".
+// TestPodActionCreate_SetsStatus is a regression test for bug CE-1652, fixed by PR #20.
+// Previously client.Query() returned the full envelope and Create double-unwrapped
+// (result["data"][...]), so even a valid GraphQL response failed with
+// "Failed to get data from response". PR #20 made Query() return the inner GraphQL
+// `data` object directly, so Create now reads result["podStop"] and sets Status.
 //
-// This asserts the current (buggy) failure. When CE-1652 is fixed (drop the second
-// unwrap), Create will succeed and set Status — flip this test to assert that.
-func TestPodActionCreate_DoubleUnwrap(t *testing.T) {
+// This asserts the FIXED behavior: a valid `podStop` response makes Create succeed
+// and populate Status from the mutation's `status` field.
+func TestPodActionCreate_SetsStatus(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"data":{"podStop":{"id":"p1","status":"STOPPED"}}}`))
 	}))
@@ -48,17 +48,16 @@ func TestPodActionCreate_DoubleUnwrap(t *testing.T) {
 	resp := &resource.CreateResponse{State: tfsdk.State{Schema: PodActionResourceSchema(context.Background())}}
 	(&PodActionResource{}).Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
 
-	if !resp.Diagnostics.HasError() {
-		t.Fatal("expected CE-1652 double-unwrap failure; if Create now succeeds, CE-1652 is FIXED — flip to assert Status == STOPPED")
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected CE-1652 fix: Create should succeed, got: %v", resp.Diagnostics)
 	}
-	found := false
-	for _, d := range resp.Diagnostics.Errors() {
-		if strings.Contains(d.Detail(), "Failed to get data from response") {
-			found = true
-		}
+
+	var state PodActionModel
+	if diags := resp.State.Get(context.Background(), &state); diags.HasError() {
+		t.Fatalf("reading state: %v", diags)
 	}
-	if !found {
-		t.Errorf("expected 'Failed to get data from response', got: %v", resp.Diagnostics)
+	if got := state.Status.ValueString(); got != "STOPPED" {
+		t.Errorf("Status = %q, want STOPPED", got)
 	}
 }
 

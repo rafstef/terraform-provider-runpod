@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -23,14 +22,11 @@ func machineConfig(t *testing.T, m MachineModel) tfsdk.Config {
 	return tfsdk.Config{Schema: sch, Raw: st.Raw}
 }
 
-// TestMachineCreate_DoubleUnwrap is a characterization test for bug CE-1652.
-// Same root cause as pod_action: client.Query() returns the inner `data`, but
-// MachineResource.Create does result["data"].(map) again (always nil), so even
-// a valid GraphQL response fails with "data not in response".
-//
-// When CE-1652 is fixed, Create will read machineCreate.id and set Id — flip this
-// test to assert that.
-func TestMachineCreate_DoubleUnwrap(t *testing.T) {
+// TestMachineCreate_SetsID is a regression test for the CE-1652 fix (PR #20).
+// client.Query() now returns the inner GraphQL `data` map directly, so Create
+// reads result["machineCreate"]["id"] and sets config.Id. A valid GraphQL
+// response must now succeed and populate the state Id.
+func TestMachineCreate_SetsID(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"data":{"machineCreate":{"id":"m1","name":"n"}}}`))
 	}))
@@ -46,26 +42,25 @@ func TestMachineCreate_DoubleUnwrap(t *testing.T) {
 	resp := &resource.CreateResponse{State: tfsdk.State{Schema: MachineResourceSchema(context.Background())}}
 	(&MachineResource{}).Create(context.Background(), resource.CreateRequest{Config: machineConfig(t, m)}, resp)
 
-	if !resp.Diagnostics.HasError() {
-		t.Fatal("expected CE-1652 double-unwrap failure; if Create now succeeds, CE-1652 is FIXED — flip to assert Id == m1")
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
 	}
-	found := false
-	for _, d := range resp.Diagnostics.Errors() {
-		if strings.Contains(d.Detail(), "data not in response") {
-			found = true
-		}
+	var got MachineModel
+	if d := resp.State.Get(context.Background(), &got); d.HasError() {
+		t.Fatalf("reading state: %v", d)
 	}
-	if !found {
-		t.Errorf("expected 'data not in response', got: %v", resp.Diagnostics)
+	if got.Id.ValueString() != "m1" {
+		t.Errorf("expected Id == m1, got %q", got.Id.ValueString())
 	}
 }
 
-// TestMachineRead_DoubleUnwrap confirms CE-1652 in Read, and documents that the
-// unchecked type assertions (like machine["name"].(string)) are currently
-// MASKED by CE-1652: the result["data"] double-unwrap errors out before any
-// assertion runs. Fixing CE-1652 without also hardening these assertions will
-// turn this error into a panic on a null/missing field.
-func TestMachineRead_DoubleUnwrap(t *testing.T) {
+// TestMachineRead_PopulatesState is a regression test for the CE-1652 fix (PR #20).
+// client.Query() now returns the inner GraphQL `data` map directly, so Read
+// reads result["machine"] and populates the state. The stub must supply every
+// dereferenced field (name, gpuCount, gpuType, cpuCount, memoryInGb,
+// diskSizeInGb, region, listed, secureCloud, maintenanceMode, verified,
+// hostPricePerGpu) because Read does unchecked type assertions on each.
+func TestMachineRead_PopulatesState(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"data":{"machine":{"name":"n","gpuCount":1,"gpuType":"A100","cpuCount":8,"memoryInGb":64,"diskSizeInGb":100,"region":"EU","listed":true,"secureCloud":true,"maintenanceMode":false,"verified":true,"hostPricePerGpu":1.5}}}`))
 	}))
@@ -82,17 +77,15 @@ func TestMachineRead_DoubleUnwrap(t *testing.T) {
 	resp := &resource.ReadResponse{State: tfsdk.State{Schema: sch}}
 	(&MachineResource{}).Read(context.Background(), resource.ReadRequest{State: state}, resp)
 
-	if !resp.Diagnostics.HasError() {
-		t.Fatal("expected CE-1652 double-unwrap failure in Read; if it now succeeds, CE-1652 is FIXED (watch for unchecked-assertion panics)")
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
 	}
-	found := false
-	for _, d := range resp.Diagnostics.Errors() {
-		if strings.Contains(d.Detail(), "Failed to get data from response") {
-			found = true
-		}
+	var got MachineModel
+	if d := resp.State.Get(context.Background(), &got); d.HasError() {
+		t.Fatalf("reading state: %v", d)
 	}
-	if !found {
-		t.Errorf("expected 'Failed to get data from response', got: %v", resp.Diagnostics)
+	if got.Name.ValueString() != "n" {
+		t.Errorf("expected name == n, got %q", got.Name.ValueString())
 	}
 }
 
