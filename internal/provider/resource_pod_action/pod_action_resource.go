@@ -61,6 +61,15 @@ func (r *PodActionResource) Create(ctx context.Context, req resource.CreateReque
 				}
 			}
 		`
+	case "reset":
+		query = `
+			mutation ResetPod($podId: String!) {
+				podReset(podId: $podId) {
+					id
+					status
+				}
+			}
+		`
 	case "terminate":
 		query = `
 			mutation TerminatePod($podId: String!) {
@@ -71,7 +80,7 @@ func (r *PodActionResource) Create(ctx context.Context, req resource.CreateReque
 			}
 		`
 	default:
-		resp.Diagnostics.AddError("Invalid Action", "Action must be one of: stop, resume, restart, terminate")
+		resp.Diagnostics.AddError("Invalid Action", "Action must be one of: stop, resume, restart, reset, terminate")
 		return
 	}
 
@@ -101,6 +110,10 @@ variables := map[string]interface{}{
 		case "restart":
 			if podRestart, ok := data["podRestart"].(map[string]interface{}); ok {
 				status = podRestart["status"].(string)
+			}
+		case "reset":
+			if podReset, ok := data["podReset"].(map[string]interface{}); ok {
+				status = podReset["status"].(string)
 			}
 		case "terminate":
 			if podTerminate, ok := data["podTerminate"].(map[string]interface{}); ok {
