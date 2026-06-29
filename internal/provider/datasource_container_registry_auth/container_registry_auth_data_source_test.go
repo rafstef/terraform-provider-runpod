@@ -25,7 +25,6 @@ import (
 //
 // Un-skip when fixed.
 func TestContainerRegistryAuthDataSourceRead_PopulatesState(t *testing.T) {
-	t.Skip("CE-1671: Read re-unwraps result[\"data\"] (double-unwrap); also sets a []Model slice against a single-object schema. Un-skip when fixed")
 
 	// Valid GraphQL response: client.Query strips the {"data":...} envelope and
 	// returns the inner map, so a correct Read reads result["containerRegistryAuths"].

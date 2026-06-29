@@ -89,7 +89,6 @@ func TestContainerRegistryAuthResource_Create(t *testing.T) {
 // "id" but omitting "name"/"username", Create should return a diagnostics
 // error gracefully rather than panicking on an unchecked type assertion.
 func TestContainerRegistryAuthResource_Create_PartialResponse_ReturnsDiagnostic(t *testing.T) {
-	t.Skip("container_registry_auth Create uses unchecked type assertions on result[name]/[username] and panics on a partial response; should return a diagnostic — un-skip when fixed")
 
 	ctx := context.Background()
 	sch := ContainerRegistryAuthResourceSchema(ctx)
