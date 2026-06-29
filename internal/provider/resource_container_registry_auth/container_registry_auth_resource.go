@@ -100,9 +100,15 @@ func (r *ContainerRegistryAuthResource) Create(ctx context.Context, req resource
 
 	if val, ok := result["name"].(string); ok {
 		config.Name = types.StringValue(val)
+	} else {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to get name from response: %v", result))
+		return
 	}
 	if val, ok := result["username"].(string); ok {
 		config.Username = types.StringValue(val)
+	} else {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to get username from response: %v", result))
+		return
 	}
 
 	diags = resp.State.Set(ctx, &config)
