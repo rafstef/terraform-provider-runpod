@@ -488,6 +488,149 @@
           }
         ]
       }
+    },
+    {
+      "name": "template",
+      "description": "Retrieve information about a RunPod template",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Template ID to look up"
+            }
+          },
+          {
+            "name": "name",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Template name"
+            }
+          },
+          {
+            "name": "image_name",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Docker image name"
+            }
+          },
+          {
+            "name": "category",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Category: NVIDIA, AMD, or CPU"
+            }
+          },
+          {
+            "name": "container_disk_in_gb",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Container disk size in GB"
+            }
+          },
+          {
+            "name": "container_registry_auth_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Container registry authentication ID"
+            }
+          },
+          {
+            "name": "docker_entrypoint",
+            "list": {
+              "computed_optional_required": "computed",
+              "element_type": {
+                "string": {}
+              },
+              "description": "Docker entrypoint array"
+            }
+          },
+          {
+            "name": "docker_start_cmd",
+            "list": {
+              "computed_optional_required": "computed",
+              "element_type": {
+                "string": {}
+              },
+              "description": "Docker start command array"
+            }
+          },
+          {
+            "name": "env",
+            "object": {
+              "computed_optional_required": "computed",
+              "description": "Environment variables object"
+            }
+          },
+          {
+            "name": "is_public",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether template is public"
+            }
+          },
+          {
+            "name": "is_serverless",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether template is serverless"
+            }
+          },
+          {
+            "name": "ports",
+            "list": {
+              "computed_optional_required": "computed",
+              "element_type": {
+                "string": {}
+              },
+              "description": "Ports array"
+            }
+          },
+          {
+            "name": "readme",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Template readme/documentation"
+            }
+          },
+          {
+            "name": "volume_in_gb",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Volume size in GB"
+            }
+          },
+          {
+            "name": "volume_mount_path",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Volume mount path"
+            }
+          },
+          {
+            "name": "earned",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Credits earned by template usage"
+            }
+          },
+          {
+            "name": "is_runpod",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether it's an official RunPod template"
+            }
+          },
+          {
+            "name": "runtime_in_min",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Runtime in minutes"
+            }
+          }
+        ]
+      }
     }
   ],
   "resources": [
@@ -1029,6 +1172,149 @@
                 }
               },
               "description": "List of workers (pods)"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "template",
+      "description": "Manage RunPod reusable templates for pod configurations",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Template ID"
+            }
+          },
+          {
+            "name": "name",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Template name"
+            }
+          },
+          {
+            "name": "image_name",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Docker image name"
+            }
+          },
+          {
+            "name": "category",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Category: NVIDIA, AMD, or CPU"
+            }
+          },
+          {
+            "name": "container_disk_in_gb",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Container disk size in GB"
+            }
+          },
+          {
+            "name": "container_registry_auth_id",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Container registry authentication ID"
+            }
+          },
+          {
+            "name": "docker_entrypoint",
+            "list": {
+              "computed_optional_required": "computed_optional",
+              "element_type": {
+                "string": {}
+              },
+              "description": "Docker entrypoint array"
+            }
+          },
+          {
+            "name": "docker_start_cmd",
+            "list": {
+              "computed_optional_required": "computed_optional",
+              "element_type": {
+                "string": {}
+              },
+              "description": "Docker start command array"
+            }
+          },
+          {
+            "name": "env",
+            "object": {
+              "computed_optional_required": "computed_optional",
+              "description": "Environment variables object"
+            }
+          },
+          {
+            "name": "is_public",
+            "bool": {
+              "computed_optional_required": "computed_optional",
+              "description": "Whether template is public"
+            }
+          },
+          {
+            "name": "is_serverless",
+            "bool": {
+              "computed_optional_required": "computed_optional",
+              "description": "Whether template is serverless"
+            }
+          },
+          {
+            "name": "ports",
+            "list": {
+              "computed_optional_required": "computed_optional",
+              "element_type": {
+                "string": {}
+              },
+              "description": "Ports array"
+            }
+          },
+          {
+            "name": "readme",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Template readme/documentation"
+            }
+          },
+          {
+            "name": "volume_in_gb",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Volume size in GB"
+            }
+          },
+          {
+            "name": "volume_mount_path",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Volume mount path"
+            }
+          },
+          {
+            "name": "earned",
+            "float64": {
+              "computed_optional_required": "computed",
+              "description": "Credits earned by template usage"
+            }
+          },
+          {
+            "name": "is_runpod",
+            "bool": {
+              "computed_optional_required": "computed",
+              "description": "Whether it's an official RunPod template"
+            }
+          },
+          {
+            "name": "runtime_in_min",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Runtime in minutes"
             }
           }
         ]
