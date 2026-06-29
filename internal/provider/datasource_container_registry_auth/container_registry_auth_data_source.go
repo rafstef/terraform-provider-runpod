@@ -54,7 +54,10 @@ func (d *ContainerRegistryAuthDataSource) Read(ctx context.Context, req datasour
 				}
 			}
 		}
-		diags := resp.State.Set(ctx, &models)
+		parent := ContainerRegistryAuthDataSourceModel{
+			ContainerRegistryAuths: models,
+		}
+		diags := resp.State.Set(ctx, &parent)
 		if diags.HasError() {
 			resp.Diagnostics.Append(diags...)
 			return

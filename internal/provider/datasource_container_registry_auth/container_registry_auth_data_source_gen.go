@@ -12,20 +12,29 @@ import (
 func ContainerRegistryAuthDataSourceSchema(ctx context.Context) schema.Schema {
 	return schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"id": schema.StringAttribute{
+			"container_registry_auths": schema.ListNestedAttribute{
 				Computed:            true,
-				Description:         "Container registry auth ID",
-				MarkdownDescription: "Container registry auth ID",
-			},
-			"name": schema.StringAttribute{
-				Computed:            true,
-				Description:         "Container registry auth name",
-				MarkdownDescription: "Container registry auth name",
-			},
-			"username": schema.StringAttribute{
-				Computed:            true,
-				Description:         "Container registry username",
-				MarkdownDescription: "Container registry username",
+				Description:         "List of container registry auths",
+				MarkdownDescription: "List of container registry auths",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"id": schema.StringAttribute{
+							Computed:            true,
+							Description:         "Container registry auth ID",
+							MarkdownDescription: "Container registry auth ID",
+						},
+						"name": schema.StringAttribute{
+							Computed:            true,
+							Description:         "Container registry auth name",
+							MarkdownDescription: "Container registry auth name",
+						},
+						"username": schema.StringAttribute{
+							Computed:            true,
+							Description:         "Container registry username",
+							MarkdownDescription: "Container registry username",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -35,4 +44,8 @@ type ContainerRegistryAuthModel struct {
 	Id       types.String `tfsdk:"id"`
 	Name     types.String `tfsdk:"name"`
 	Username types.String `tfsdk:"username"`
+}
+
+type ContainerRegistryAuthDataSourceModel struct {
+	ContainerRegistryAuths []ContainerRegistryAuthModel `tfsdk:"container_registry_auths"`
 }
