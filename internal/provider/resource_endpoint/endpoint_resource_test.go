@@ -379,3 +379,151 @@ func TestEndpointDelete_NonNoContent(t *testing.T) {
 		t.Fatalf("expected diagnostics error for 500 status, got none")
 	}
 }
+
+func strList(vals ...string) types.List {
+	elems := make([]attr.Value, len(vals))
+	for i, v := range vals {
+		elems[i] = types.StringValue(v)
+	}
+	return types.ListValueMust(types.StringType, elems)
+}
+
+// TestEndpointCreate_WithListFields exercises Create's list/map body-building
+// branches (networkVolumeIds, dataCenterIds, gpuTypeIds, allowedCudaVersions,
+// env) — the bulk of Create the happy-path test doesn't reach.
+func TestEndpointCreate_WithListFields(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	m := newBaseModel()
+	m.TemplateId = types.StringValue("tmpl-123")
+	m.Name = types.StringValue("my-ep")
+	m.NetworkVolumeIds = strList("nv-1", "nv-2")
+	m.DataCenterIds = strList("US-CA-1")
+	m.GpuTypeIds = strList("NVIDIA A100")
+	m.AllowedCudaVersions = strList("12.0", "12.1")
+	m.Env = types.MapValueMust(types.StringType, map[string]attr.Value{"MY_VAR": types.StringValue("x")})
+
+	st := tfsdk.State{Schema: sch}
+	if d := st.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build config: %v", d)
+	}
+	cfg := tfsdk.Config{Schema: sch, Raw: st.Raw}
+
+	var body map[string]interface{}
+	srv := stubServer(t, 200, `{"id":"ep-1","templateId":"tmpl-123","name":"my-ep"}`, &body, nil, nil)
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	cresp := &resource.CreateResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Create(ctx, resource.CreateRequest{Config: cfg}, cresp)
+	if cresp.Diagnostics.HasError() {
+		t.Fatalf("Create errored: %v", cresp.Diagnostics.Errors())
+	}
+
+	for _, k := range []string{"networkVolumeIds", "dataCenterIds", "gpuTypeIds", "allowedCudaVersions"} {
+		arr, ok := body[k].([]interface{})
+		if !ok || len(arr) == 0 {
+			t.Errorf("body[%q] not a non-empty array; got %v", k, body[k])
+		}
+	}
+	if nv, _ := body["networkVolumeIds"].([]interface{}); len(nv) != 2 {
+		t.Errorf("networkVolumeIds = %v, want 2 elements", body["networkVolumeIds"])
+	}
+	if env, ok := body["env"].(map[string]interface{}); !ok || env["MY_VAR"] != "x" {
+		t.Errorf("body env = %v, want MY_VAR=x", body["env"])
+	}
+}
+
+// TestEndpointUpdate_Success drives Update (reads req.Config + req.State) and
+// asserts the PATCH carries the changed field. Update is entirely uncovered by
+// the happy-path suite.
+func TestEndpointUpdate_Success(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	prior := newBaseModel()
+	prior.Id = types.StringValue("ep-1")
+	prior.Name = types.StringValue("old-name")
+	prior.WorkersMin = types.Int64Value(1)
+
+	desired := newBaseModel()
+	desired.Id = types.StringValue("ep-1")
+	desired.Name = types.StringValue("old-name")
+	desired.WorkersMin = types.Int64Value(5) // changed
+
+	priorSt := tfsdk.State{Schema: sch}
+	if d := priorSt.Set(ctx, &prior); d.HasError() {
+		t.Fatalf("build prior state: %v", d)
+	}
+	desiredSt := tfsdk.State{Schema: sch}
+	if d := desiredSt.Set(ctx, &desired); d.HasError() {
+		t.Fatalf("build desired: %v", d)
+	}
+
+	var body map[string]interface{}
+	var method, path string
+	srv := stubServer(t, 200, `{"id":"ep-1","name":"old-name","workersMin":5,"version":3}`, &body, &method, &path)
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	uresp := &resource.UpdateResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Update(ctx, resource.UpdateRequest{
+		Config: tfsdk.Config{Schema: sch, Raw: desiredSt.Raw},
+		State:  priorSt,
+	}, uresp)
+
+	if uresp.Diagnostics.HasError() {
+		t.Fatalf("Update errored: %v", uresp.Diagnostics.Errors())
+	}
+	if method != "PATCH" || path != "/endpoints/ep-1" {
+		t.Errorf("expected PATCH /endpoints/ep-1, got %s %s", method, path)
+	}
+	if body["workersMin"] != float64(5) {
+		t.Errorf("PATCH body workersMin = %v, want 5", body["workersMin"])
+	}
+}
+
+// TestEndpointRead_MapsWorkersAndEnv exercises Read's workers-list and env-map
+// field-mapping branches (not reached by the scalar-only Read happy-path test).
+func TestEndpointRead_MapsWorkersAndEnv(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	m := newBaseModel()
+	m.Id = types.StringValue("ep-1")
+	st := tfsdk.State{Schema: sch}
+	if d := st.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build state: %v", d)
+	}
+
+	resp := `{"id":"ep-1","name":"ep","computeType":"GPU","gpuCount":2,
+		"env":{"MY_VAR":"hello"},
+		"workers":[{"id":"w-1","podId":"p-1","status":"RUNNING","uptimeMs":1000,"startTime":"2024-01-01","lastBusyMs":500}]}`
+	srv := stubServer(t, 200, resp, nil, nil, nil)
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	rresp := &resource.ReadResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Read(ctx, resource.ReadRequest{State: tfsdk.State{Schema: sch, Raw: st.Raw}}, rresp)
+
+	if rresp.Diagnostics.HasError() {
+		t.Fatalf("Read errored: %v", rresp.Diagnostics.Errors())
+	}
+	var out EndpointModel
+	if d := rresp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read state: %v", d)
+	}
+	if out.ComputeType.ValueString() != "GPU" {
+		t.Errorf("ComputeType = %q, want GPU", out.ComputeType.ValueString())
+	}
+	if out.Workers.IsNull() || len(out.Workers.Elements()) != 1 {
+		t.Errorf("Workers = %v, want 1 element", out.Workers)
+	}
+	if out.Env.IsNull() || out.Env.Elements()["MY_VAR"] == nil {
+		t.Errorf("Env = %v, want MY_VAR populated", out.Env)
+	}
+}
