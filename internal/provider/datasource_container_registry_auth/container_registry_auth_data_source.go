@@ -43,27 +43,23 @@ func (d *ContainerRegistryAuthDataSource) Read(ctx context.Context, req datasour
 		return
 	}
 
-	if data, ok := result["data"].(map[string]interface{}); ok {
-		if auths, ok := data["containerRegistryAuths"].([]interface{}); ok {
-			models := make([]ContainerRegistryAuthModel, len(auths))
-			for i, auth := range auths {
-				if authMap, ok := auth.(map[string]interface{}); ok {
-					models[i] = ContainerRegistryAuthModel{
-						Id:       types.StringValue(authMap["id"].(string)),
-						Name:     types.StringValue(authMap["name"].(string)),
-						Username: types.StringValue(authMap["username"].(string)),
-					}
+	if auths, ok := result["containerRegistryAuths"].([]interface{}); ok {
+		models := make([]ContainerRegistryAuthModel, len(auths))
+		for i, auth := range auths {
+			if authMap, ok := auth.(map[string]interface{}); ok {
+				models[i] = ContainerRegistryAuthModel{
+					Id:       types.StringValue(authMap["id"].(string)),
+					Name:     types.StringValue(authMap["name"].(string)),
+					Username: types.StringValue(authMap["username"].(string)),
 				}
 			}
-			diags := resp.State.Set(ctx, &models)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-		} else {
-			resp.Diagnostics.AddError("API Error", "Failed to parse container registry auths from response")
+		}
+		diags := resp.State.Set(ctx, &models)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
 		}
 	} else {
-		resp.Diagnostics.AddError("API Error", "Failed to get data from response")
+		resp.Diagnostics.AddError("API Error", "Failed to parse container registry auths from response")
 	}
 }

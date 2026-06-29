@@ -98,8 +98,12 @@ func (r *ContainerRegistryAuthResource) Create(ctx context.Context, req resource
 		return
 	}
 
-	config.Name = types.StringValue(result["name"].(string))
-	config.Username = types.StringValue(result["username"].(string))
+	if val, ok := result["name"].(string); ok {
+		config.Name = types.StringValue(val)
+	}
+	if val, ok := result["username"].(string); ok {
+		config.Username = types.StringValue(val)
+	}
 
 	diags = resp.State.Set(ctx, &config)
 	if diags.HasError() {
