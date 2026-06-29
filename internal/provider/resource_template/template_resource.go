@@ -702,6 +702,15 @@ func (r *TemplateResource) Update(ctx context.Context, req resource.UpdateReques
 	if val, ok := result["volumeMountPath"].(string); ok {
 		state.VolumeMountPath = types.StringValue(val)
 	}
+	if val, ok := result["earned"].(float64); ok {
+		state.Earned = types.Float64Value(val)
+	}
+	if val, ok := result["isRunpod"].(bool); ok {
+		state.IsRunpod = types.BoolValue(val)
+	}
+	if val, ok := result["runtimeInMin"].(float64); ok {
+		state.RuntimeInMin = types.Int64Value(int64(val))
+	}
 
 	diags = resp.State.Set(ctx, &state)
 	if diags.HasError() {

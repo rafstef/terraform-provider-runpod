@@ -58,6 +58,13 @@ func TestTemplateDataSourceRead_PopulatesState(t *testing.T) {
 	for name, typ := range objType.AttributeTypes {
 		if name == "id" {
 			vals[name] = tftypes.NewValue(typ, "tmpl-123")
+		} else if name == "env" {
+			// env is now a Map type
+			if mapType, ok := typ.(tftypes.Map); ok {
+				vals[name] = tftypes.NewValue(mapType, map[string]tftypes.Value{})
+			} else {
+				vals[name] = tftypes.NewValue(typ, nil)
+			}
 		} else {
 			vals[name] = tftypes.NewValue(typ, nil)
 		}

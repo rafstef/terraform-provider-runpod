@@ -54,10 +54,11 @@ func TemplateDataSourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Docker start command array",
 				MarkdownDescription: "Docker start command array",
 			},
-			"env": schema.ObjectAttribute{
+			"env": schema.MapAttribute{
+				ElementType:         types.StringType,
 				Computed:            true,
-				Description:         "Environment variables object",
-				MarkdownDescription: "Environment variables object",
+				Description:         "Environment variables",
+				MarkdownDescription: "Environment variables",
 			},
 			"is_public": schema.BoolAttribute{
 				Computed:            true,
