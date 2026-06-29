@@ -20,7 +20,7 @@ import (
 // should populate the parent model's BillingRecords list and produce NO
 // diagnostics errors.
 func TestBillingPodDataSourceRead_PopulatesBillingRecords(t *testing.T) {
-	t.Skip("CE-1674: Read sets a []BillingRecordModel slice against the single-object root schema (Value Conversion Error); should set the parent model with BillingRecords populated — un-skip when fixed")
+
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// RestQuery requests baseURL + "/billing/pods" and decodes this JSON object.

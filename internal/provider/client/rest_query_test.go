@@ -83,7 +83,7 @@ func TestRestQuery_NonOK_Errors(t *testing.T) {
 // instead of http.NewRequestWithContext, so the ctx is never wired in. The test
 // is skipped until that is fixed so the package stays green.
 func TestRestQuery_RespectsContextCancellation(t *testing.T) {
-	t.Skip("CE-1659: RestQuery uses http.NewRequest, not http.NewRequestWithContext, so it ignores ctx cancellation — un-skip when fixed")
+
 
 	var requested bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
