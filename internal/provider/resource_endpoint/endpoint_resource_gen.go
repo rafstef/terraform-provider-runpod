@@ -47,10 +47,11 @@ func EndpointResourceSchema(ctx context.Context) schema.Schema {
 				Description: "List of data center IDs",
 				MarkdownDescription: "List of data center IDs",
 			},
-			"env": schema.ObjectAttribute{
+			"env": schema.MapAttribute{
+				ElementType:         types.StringType,
 				Optional:            true,
-				Description:         "Environment variables object",
-				MarkdownDescription: "Environment variables object",
+				Description:         "Environment variables",
+				MarkdownDescription: "Environment variables",
 			},
 			"execution_timeout_ms": schema.Int64Attribute{
 				Optional:            true,
@@ -188,7 +189,7 @@ type EndpointModel struct {
 	CpuFlavorPriority    types.String `tfsdk:"cpu_flavor_priority"`
 	CreatedAt            types.String `tfsdk:"created_at"`
 	DataCenterIds        types.List   `tfsdk:"data_center_ids"`
-	Env                  types.Object `tfsdk:"env"`
+	Env                  types.Map    `tfsdk:"env"`
 	ExecutionTimeoutMs   types.Int64  `tfsdk:"execution_timeout_ms"`
 	Flashboot            types.Bool   `tfsdk:"flashboot"`
 	GpuCount             types.Int64  `tfsdk:"gpu_count"`

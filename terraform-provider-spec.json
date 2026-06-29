@@ -530,9 +530,9 @@
               "computed_optional_required": "computed_optional",
               "description": "Docker image name (required if template_id is not specified)"
             }
-           },
-           {
-             "name": "gpu_count",
+          },
+          {
+            "name": "gpu_count",
             "int64": {
               "computed_optional_required": "computed_optional",
               "default": {
@@ -546,7 +546,7 @@
             "string": {
               "computed_optional_required": "computed_optional",
               "description": "Specific GPU type ID (optional, will auto-select if not specified)"
-           }
+            }
           },
           {
             "name": "docker_args",
@@ -633,7 +633,9 @@
             "name": "start_jupyter",
             "bool": {
               "computed_optional_required": "computed_optional",
-              "default": {"static": false},
+              "default": {
+                "static": false
+              },
               "description": "Start Jupyter notebook on boot"
             }
           },
@@ -641,7 +643,9 @@
             "name": "start_ssh",
             "bool": {
               "computed_optional_required": "computed_optional",
-              "default": {"static": false},
+              "default": {
+                "static": false
+              },
               "description": "Start SSH on boot"
             }
           },
@@ -763,7 +767,9 @@
             "name": "gpu_count",
             "int64": {
               "computed_optional_required": "computed_optional",
-              "default": {"static": 1},
+              "default": {
+                "static": 1
+              },
               "description": "Number of GPUs"
             }
           },
@@ -806,7 +812,9 @@
             "name": "secure_cloud",
             "bool": {
               "computed_optional_required": "computed_optional",
-              "default": {"static": false},
+              "default": {
+                "static": false
+              },
               "description": "Use secure cloud"
             }
           },
@@ -814,7 +822,9 @@
             "name": "listed",
             "bool": {
               "computed_optional_required": "computed_optional",
-              "default": {"static": true},
+              "default": {
+                "static": true
+              },
               "description": "List machine for others to use"
             }
           },
@@ -845,181 +855,184 @@
               "computed_optional_required": "computed",
               "description": "Whether in maintenance mode"
             }
-           }
-         ]
-       }
-     },
-     {
-       "name": "endpoint",
-       "description": "Manage RunPod serverless endpoints - auto-scaling compute resources",
-       "schema": {
-         "attributes": [
-           {
-             "name": "id",
-             "string": {
-               "computed_optional_required": "computed",
-               "description": "Endpoint ID"
-             }
-           },
-           {
-             "name": "template_id",
-             "string": {
-               "computed_optional_required": "required",
-               "description": "Template ID for the endpoint"
-             }
-           },
-           {
-             "name": "name",
-             "string": {
-               "computed_optional_required": "computed_optional",
-               "description": "Endpoint name"
-             }
-           },
-           {
-             "name": "workers_min",
-             "int64": {
-               "computed_optional_required": "computed_optional",
-               "description": "Minimum number of workers"
-             }
-           },
-           {
-             "name": "workers_max",
-             "int64": {
-               "computed_optional_required": "computed_optional",
-               "description": "Maximum number of workers"
-             }
-           },
-           {
-             "name": "idle_timeout",
-             "int64": {
-               "computed_optional_required": "computed_optional",
-               "description": "Idle timeout in minutes"
-             }
-           },
-           {
-             "name": "gpu_count",
-             "int64": {
-               "computed_optional_required": "computed_optional",
-               "description": "Number of GPUs per worker"
-             }
-           },
-           {
-             "name": "compute_type",
-             "string": {
-               "computed_optional_required": "computed_optional",
-               "description": "Compute type: GPU or CPU"
-             }
-           },
-           {
-             "name": "network_volume_id",
-             "string": {
-               "computed_optional_required": "computed_optional",
-               "description": "Network volume ID"
-             }
-           },
-           {
-             "name": "network_volume_ids",
-             "list": {
-               "computed_optional_required": "computed_optional",
-               "element_type": {
-                 "string": {}
-               },
-               "description": "List of network volume IDs"
-             }
-           },
-           {
-             "name": "env",
-             "object": {
-               "computed_optional_required": "computed_optional",
-               "description": "Environment variables"
-             }
-           },
-           {
-             "name": "data_center_ids",
-             "list": {
-               "computed_optional_required": "computed_optional",
-               "element_type": {
-                 "string": {}
-               },
-               "description": "List of data center IDs"
-             }
-           },
-           {
-             "name": "created_at",
-             "string": {
-               "computed_optional_required": "computed",
-               "description": "Creation timestamp"
-             }
-           },
-           {
-             "name": "version",
-             "int64": {
-               "computed_optional_required": "computed",
-               "description": "Endpoint version"
-             }
-           },
-           {
-             "name": "template_version",
-             "int64": {
-               "computed_optional_required": "computed",
-               "description": "Template version"
-             }
-           },
-           {
-             "name": "users",
-             "list": {
-               "computed_optional_required": "computed",
-               "element_type": {
-                 "string": {}
-               },
-               "description": "List of user IDs with access"
-             }
-           },
-           {
-             "name": "workers",
-             "list": {
-               "computed_optional_required": "computed",
-               "element_type": {
-                 "object": {
-                   "attributes": {
-                     "id": {
-                       "string": {
-                         "computed_optional_required": "computed"
-                       }
-                     },
-                     "pod_id": {
-                       "string": {
-                         "computed_optional_required": "computed"
-                       }
-                     },
-                     "status": {
-                       "string": {
-                         "computed_optional_required": "computed"
-                       }
-                     },
-                     "uptime_ms": {
-                       "int64": {
-                         "computed_optional_required": "computed"
-                       }
-                     },
-                     "start_time": {
-                       "string": {
-                         "computed_optional_required": "computed"
-                       }
-                     },
-                     "last_busy_ms": {
-                       "int64": {
-                         "computed_optional_required": "computed"
-                       }
-                     }
-                   }
-                 }
-               },
-               "description": "List of workers (pods)"
-             }
-           }
-         ]
-       }
-     }
-   ]
- }
+          }
+        ]
+      }
+    },
+    {
+      "name": "endpoint",
+      "description": "Manage RunPod serverless endpoints - auto-scaling compute resources",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Endpoint ID"
+            }
+          },
+          {
+            "name": "template_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Template ID for the endpoint"
+            }
+          },
+          {
+            "name": "name",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Endpoint name"
+            }
+          },
+          {
+            "name": "workers_min",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Minimum number of workers"
+            }
+          },
+          {
+            "name": "workers_max",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Maximum number of workers"
+            }
+          },
+          {
+            "name": "idle_timeout",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Idle timeout in minutes"
+            }
+          },
+          {
+            "name": "gpu_count",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Number of GPUs per worker"
+            }
+          },
+          {
+            "name": "compute_type",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Compute type: GPU or CPU"
+            }
+          },
+          {
+            "name": "network_volume_id",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Network volume ID"
+            }
+          },
+          {
+            "name": "network_volume_ids",
+            "list": {
+              "computed_optional_required": "computed_optional",
+              "element_type": {
+                "string": {}
+              },
+              "description": "List of network volume IDs"
+            }
+          },
+          {
+            "name": "env",
+            "map": {
+              "element_type": {
+                "string": {}
+              },
+              "computed_optional_required": "computed_optional",
+              "description": "Environment variables"
+            }
+          },
+          {
+            "name": "data_center_ids",
+            "list": {
+              "computed_optional_required": "computed_optional",
+              "element_type": {
+                "string": {}
+              },
+              "description": "List of data center IDs"
+            }
+          },
+          {
+            "name": "created_at",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Creation timestamp"
+            }
+          },
+          {
+            "name": "version",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Endpoint version"
+            }
+          },
+          {
+            "name": "template_version",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Template version"
+            }
+          },
+          {
+            "name": "users",
+            "list": {
+              "computed_optional_required": "computed",
+              "element_type": {
+                "string": {}
+              },
+              "description": "List of user IDs with access"
+            }
+          },
+          {
+            "name": "workers",
+            "list": {
+              "computed_optional_required": "computed",
+              "element_type": {
+                "object": {
+                  "attributes": {
+                    "id": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "pod_id": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "status": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "uptime_ms": {
+                      "int64": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "start_time": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "last_busy_ms": {
+                      "int64": {
+                        "computed_optional_required": "computed"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "List of workers (pods)"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

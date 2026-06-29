@@ -120,11 +120,9 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 
 	if !config.Env.IsNull() {
 		envMap := make(map[string]interface{})
-		for key, val := range config.Env.Attributes() {
-			if val != nil {
-				if strVal, ok := val.(types.String); ok && !strVal.IsNull() {
-					envMap[key] = strVal.ValueString()
-				}
+		for key, val := range config.Env.Elements() {
+			if strVal, ok := val.(types.String); ok {
+				envMap[key] = strVal.ValueString()
 			}
 		}
 		if len(envMap) > 0 {
@@ -379,7 +377,7 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 			}
 		}
 		if len(envMap) > 0 {
-			envObj, diags := types.ObjectValue(map[string]attr.Type{}, envMap)
+			envObj, diags := types.MapValue(types.StringType, envMap)
 			if diags.HasError() {
 				resp.Diagnostics.Append(diags...)
 				return
@@ -598,7 +596,7 @@ func (r *EndpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 			}
 		}
 		if len(envMap) > 0 {
-			envObj, diags := types.ObjectValue(map[string]attr.Type{}, envMap)
+			envObj, diags := types.MapValue(types.StringType, envMap)
 			if diags.HasError() {
 				resp.Diagnostics.Append(diags...)
 				return
@@ -728,11 +726,9 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 
 	if !config.Env.IsNull() {
 		envMap := make(map[string]interface{})
-		for key, val := range config.Env.Attributes() {
-			if val != nil {
-				if strVal, ok := val.(types.String); ok && !strVal.IsNull() {
-					envMap[key] = strVal.ValueString()
-				}
+		for key, val := range config.Env.Elements() {
+			if strVal, ok := val.(types.String); ok {
+				envMap[key] = strVal.ValueString()
 			}
 		}
 		if len(envMap) > 0 {
@@ -954,9 +950,7 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 			}
 		}
 		if len(envMap) > 0 {
-			envObj, diags := types.ObjectValue(map[string]attr.Type{
-				"key": types.StringType,
-			}, envMap)
+			envObj, diags := types.MapValue(types.StringType, envMap)
 			if diags.HasError() {
 				resp.Diagnostics.Append(diags...)
 				return
