@@ -44,7 +44,7 @@ func newBaseModel() TemplateModel {
 		// The schema declares `env` as a bare ObjectAttribute with no
 		// AttributeTypes, so a null object with an empty attribute-type map is
 		// what the framework round-trips cleanly here.
-		Env: types.ObjectNull(map[string]attr.Type{}),
+		Env: types.MapNull(types.StringType),
 		IsPublic:                types.BoolNull(),
 		IsServerless:            types.BoolNull(),
 		Ports:                   types.ListNull(types.StringType),

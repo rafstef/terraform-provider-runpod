@@ -51,10 +51,11 @@ func TemplateResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Docker start command array",
 				MarkdownDescription: "Docker start command array",
 			},
-			"env": schema.ObjectAttribute{
+			"env": schema.MapAttribute{
+				ElementType:         types.StringType,
 				Optional:            true,
-				Description:         "Environment variables object",
-				MarkdownDescription: "Environment variables object",
+				Description:         "Environment variables",
+				MarkdownDescription: "Environment variables",
 			},
 			"is_public": schema.BoolAttribute{
 				Optional:            true,
@@ -120,10 +121,10 @@ type TemplateModel struct {
 	ImageName              types.String  `tfsdk:"image_name"`
 	Category               types.String  `tfsdk:"category"`
 	ContainerDiskInGb      types.Int64   `tfsdk:"container_disk_in_gb"`
-	ContainerRegistryAuthId types.String  `tfsdk:"container_registry_auth_id"`
+	ContainerRegistryAuthId types.String `tfsdk:"container_registry_auth_id"`
 	DockerEntrypoint       types.List    `tfsdk:"docker_entrypoint"`
 	DockerStartCmd         types.List    `tfsdk:"docker_start_cmd"`
-	Env                    types.Object  `tfsdk:"env"`
+	Env                    types.Map     `tfsdk:"env"`
 	IsPublic               types.Bool    `tfsdk:"is_public"`
 	IsServerless           types.Bool    `tfsdk:"is_serverless"`
 	Ports                  types.List    `tfsdk:"ports"`
