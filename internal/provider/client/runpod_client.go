@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -91,12 +90,7 @@ func (c *RunPodClient) QueryRaw(ctx context.Context, query string) (map[string]i
 }
 
 func (c *RunPodClient) RestQuery(ctx context.Context, method, path string, params map[string]string) (map[string]interface{}, error) {
-	baseUrl := os.Getenv("RUNPOD_BASE_URL")
-	if baseUrl == "" {
-		baseUrl = "https://rest.runpod.io/v1"
-	}
-	
-	url := baseUrl + "/" + path
+	url := GetRestBaseURL() + "/" + path
 	
 	if len(params) > 0 {
 		queryParts := make([]string, 0, len(params))
@@ -107,7 +101,7 @@ func (c *RunPodClient) RestQuery(ctx context.Context, method, path string, param
 		url += "?" + strings.Join(queryParts, "&")
 	}
 
-	req, err := http.NewRequest(method, url, nil)
+	req, err := http.NewRequestWithContext(ctx, method, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

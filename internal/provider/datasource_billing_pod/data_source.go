@@ -104,7 +104,14 @@ func (d *BillingPodDataSource) Read(ctx context.Context, req datasource.ReadRequ
 				}
 			}
 		}
-		diags := resp.State.Set(ctx, &models)
+		model := BillingPodModel{
+			BucketSize: config.BucketSize,
+			EndTime:    config.EndTime,
+			GpuTypeId:  config.GpuTypeId,
+			PodId:      config.PodId,
+			BillingRecords: models,
+		}
+		diags := resp.State.Set(ctx, &model)
 		if diags.HasError() {
 			resp.Diagnostics.Append(diags...)
 			return

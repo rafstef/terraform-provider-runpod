@@ -83,7 +83,12 @@ func (d *BillingEndpointDataSource) Read(ctx context.Context, req datasource.Rea
 				}
 			}
 		}
-		diags := resp.State.Set(ctx, &models)
+		model := BillingEndpointModel{
+			BucketSize:     config.BucketSize,
+			EndpointId:     config.EndpointId,
+			BillingRecords: models,
+		}
+		diags := resp.State.Set(ctx, &model)
 		if diags.HasError() {
 			resp.Diagnostics.Append(diags...)
 			return

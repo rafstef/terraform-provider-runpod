@@ -89,7 +89,12 @@ func (d *BillingNetworkVolumeDataSource) Read(ctx context.Context, req datasourc
 				}
 			}
 		}
-		diags := resp.State.Set(ctx, &models)
+		model := BillingNetworkVolumeModel{
+			BucketSize:        config.BucketSize,
+			NetworkVolumeId:   config.NetworkVolumeId,
+			BillingRecords:    models,
+		}
+		diags := resp.State.Set(ctx, &model)
 		if diags.HasError() {
 			resp.Diagnostics.Append(diags...)
 			return
