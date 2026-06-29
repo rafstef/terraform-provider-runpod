@@ -18,18 +18,7 @@ import (
 // envelope, and populates state (name / imageName / etc.) with no diagnostics
 // error.
 //
-// This is gated on two open bugs in the source (NOT in this test):
-//   - CE-1670: TemplateModel in template_data_source_gen.go has malformed
-//     `tfsdk` struct tags (missing closing quote on every field after Name),
-//     so req.Config.Get(ctx, &config) fails reflection ("need a struct tag for
-//     \"tfsdk\"") and go vet fails.
-//   - CE-1671: Read re-indexes result["data"] at template_data_source.go:71
-//     after client.Query already stripped the {"data":...} envelope
-//     (double-unwrap), so the else branch always fires.
-//
-// Un-skip when both are fixed.
 func TestTemplateDataSourceRead_PopulatesState(t *testing.T) {
-	t.Skip("CE-1670: malformed tfsdk struct tags in template_data_source_gen.go break reflection (go vet fails); CE-1671: Read re-unwraps result[\"data\"] (double-unwrap). Un-skip when both are fixed")
 
 	// Valid GraphQL response: client.Query strips the {"data":...} envelope and
 	// returns the inner map, so a correct Read reads result["template"] directly.

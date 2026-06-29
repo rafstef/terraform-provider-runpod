@@ -363,8 +363,6 @@ func TestTemplateResource_Read_Success(t *testing.T) {
 // in the final state. Update must not overwrite the API-merged values with the
 // planned config.
 func TestTemplateResource_Update_RetainsApiComputedFields(t *testing.T) {
-	t.Skip("CE-1673: Update double-sets state and overwrites API-merged values with the plan — un-skip when fixed")
-
 	ctx := context.Background()
 	sch := TemplateResourceSchema(ctx)
 
