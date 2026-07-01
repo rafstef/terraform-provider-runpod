@@ -61,7 +61,7 @@ func (r *NetworkVolumeResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	reqHTTP, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	reqHTTP, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
@@ -132,7 +132,7 @@ func (r *NetworkVolumeResource) Read(ctx context.Context, req resource.ReadReque
 
 	url := client.GetRestBaseURL() + "/networkvolumes/" + state.Id.ValueString()
 
-	reqHTTP, err := http.NewRequest("GET", url, nil)
+	reqHTTP, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
@@ -207,7 +207,7 @@ func (r *NetworkVolumeResource) Delete(ctx context.Context, req resource.DeleteR
 
 	url := client.GetRestBaseURL() + "/networkvolumes/" + state.Id.ValueString()
 
-	reqHTTP, err := http.NewRequest("DELETE", url, nil)
+	reqHTTP, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
@@ -269,7 +269,7 @@ func (r *NetworkVolumeResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	reqHTTP, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonBody))
+	reqHTTP, err := http.NewRequestWithContext(ctx, "PATCH", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
