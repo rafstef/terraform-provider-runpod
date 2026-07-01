@@ -62,15 +62,70 @@ func (d *MachinesDataSource) Read(ctx context.Context, req datasource.ReadReques
 						gpuTypeId = types.StringValue(id)
 					}
 				}
+				
+				var id, name, location, dataCenterId string
+				var listed bool
+				var gpuTotal float64
+				var secureCloud bool
+				
+				if v, ok := machineMap["id"].(string); ok {
+					id = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'id' is missing or not a string in machine response")
+					return
+				}
+				
+				if v, ok := machineMap["name"].(string); ok {
+					name = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'name' is missing or not a string in machine response")
+					return
+				}
+				
+				if v, ok := machineMap["location"].(string); ok {
+					location = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'location' is missing or not a string in machine response")
+					return
+				}
+				
+				if v, ok := machineMap["listed"].(bool); ok {
+					listed = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'listed' is missing or not a bool in machine response")
+					return
+				}
+				
+				if v, ok := machineMap["gpuTotal"].(float64); ok {
+					gpuTotal = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'gpuTotal' is missing or not a float64 in machine response")
+					return
+				}
+				
+				if v, ok := machineMap["secureCloud"].(bool); ok {
+					secureCloud = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'secureCloud' is missing or not a bool in machine response")
+					return
+				}
+				
+				if v, ok := machineMap["dataCenterId"].(string); ok {
+					dataCenterId = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'dataCenterId' is missing or not a string in machine response")
+					return
+				}
+				
 				models[i] = MachinesModel{
-					Id:           types.StringValue(machineMap["id"].(string)),
-					Name:         types.StringValue(machineMap["name"].(string)),
-					Location:     types.StringValue(machineMap["location"].(string)),
-					Listed:       types.BoolValue(machineMap["listed"].(bool)),
+					Id:           types.StringValue(id),
+					Name:         types.StringValue(name),
+					Location:     types.StringValue(location),
+					Listed:       types.BoolValue(listed),
 					GpuTypeId:    gpuTypeId,
-					GpuTotal:     types.Int64Value(int64(machineMap["gpuTotal"].(float64))),
-					SecureCloud:  types.BoolValue(machineMap["secureCloud"].(bool)),
-					DataCenterId: types.StringValue(machineMap["dataCenterId"].(string)),
+					GpuTotal:     types.Int64Value(int64(gpuTotal)),
+					SecureCloud:  types.BoolValue(secureCloud),
+					DataCenterId: types.StringValue(dataCenterId),
 				}
 			}
 		}

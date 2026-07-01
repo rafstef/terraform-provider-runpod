@@ -48,11 +48,42 @@ func (d *DataCentersDataSource) Read(ctx context.Context, req datasource.ReadReq
 		models := make([]DataCentersModel, len(dataCenters))
 		for i, dc := range dataCenters {
 			if dcMap, ok := dc.(map[string]interface{}); ok {
+				var id, name, location string
+				var globalNetwork bool
+				
+				if v, ok := dcMap["id"].(string); ok {
+					id = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'id' is missing or not a string in data center response")
+					return
+				}
+				
+				if v, ok := dcMap["name"].(string); ok {
+					name = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'name' is missing or not a string in data center response")
+					return
+				}
+				
+				if v, ok := dcMap["location"].(string); ok {
+					location = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'location' is missing or not a string in data center response")
+					return
+				}
+				
+				if v, ok := dcMap["globalNetwork"].(bool); ok {
+					globalNetwork = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'globalNetwork' is missing or not a bool in data center response")
+					return
+				}
+				
 				models[i] = DataCentersModel{
-					Id:            types.StringValue(dcMap["id"].(string)),
-					Name:          types.StringValue(dcMap["name"].(string)),
-					Location:      types.StringValue(dcMap["location"].(string)),
-					GlobalNetwork: types.BoolValue(dcMap["globalNetwork"].(bool)),
+					Id:            types.StringValue(id),
+					Name:          types.StringValue(name),
+					Location:      types.StringValue(location),
+					GlobalNetwork: types.BoolValue(globalNetwork),
 				}
 			}
 		}
