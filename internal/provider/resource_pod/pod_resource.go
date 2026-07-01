@@ -498,6 +498,22 @@ func (r *PodResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		body["volumeMountPath"] = config.VolumeMountPath.ValueString()
 	}
 
+	if !config.GpuTypeId.IsNull() && config.GpuTypeId.ValueString() != state.GpuTypeId.ValueString() {
+		body["gpuTypeId"] = config.GpuTypeId.ValueString()
+	}
+
+	if !config.MachineId.IsNull() && config.MachineId.ValueString() != state.MachineId.ValueString() {
+		body["machineId"] = config.MachineId.ValueString()
+	}
+
+	if !config.ContainerDiskInGb.IsNull() && config.ContainerDiskInGb.ValueInt64() != state.ContainerDiskInGb.ValueInt64() {
+		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
+	}
+
+	if !config.VolumeKey.IsNull() && config.VolumeKey.ValueString() != state.VolumeKey.ValueString() {
+		body["volumeKey"] = config.VolumeKey.ValueString()
+	}
+
 	if len(body) == 0 {
 		diags = resp.State.Set(ctx, &config)
 		if diags.HasError() {
