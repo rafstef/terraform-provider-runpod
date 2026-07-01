@@ -56,7 +56,7 @@ func (d *BillingPodDataSource) Read(ctx context.Context, req datasource.ReadRequ
 		restUrl = "https://rest.runpod.io/v1"
 	}
 
-	runpodClient := client.NewRunPodClient(apiKey, restUrl)
+	runpodClient := client.NewRunPodClient2(apiKey, restUrl)
 	result, err := runpodClient.RestQuery(ctx, "GET", "billing/pods", params)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())

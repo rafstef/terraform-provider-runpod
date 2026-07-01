@@ -17,3 +17,10 @@ func GetRestBaseURL() string {
 	}
 	return url
 }
+
+func (c *RunPodClient) getRestBaseURL() string {
+	if c.RestBaseURL != "" {
+		return c.RestBaseURL
+	}
+	return GetRestBaseURL()
+}

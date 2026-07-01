@@ -33,7 +33,11 @@ func (d *ContainerRegistryAuthDataSource) getClient() *client.RunPodClient {
 	if endpoint == "" {
 		endpoint = "https://api.runpod.io/graphql"
 	}
-	d.client = client.NewRunPodClient(apiKey, endpoint)
+	baseURL := os.Getenv("RUNPOD_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://rest.runpod.io/v1"
+	}
+	d.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
 	return d.client
 }
 

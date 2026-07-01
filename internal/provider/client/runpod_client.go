@@ -12,15 +12,32 @@ import (
 )
 
 type RunPodClient struct {
-	APIKey   string
-	Endpoint string
-	Client   *http.Client
+	APIKey      string
+	GraphQLEndpoint string
+	RestBaseURL string
+	Client      *http.Client
 }
 
-func NewRunPodClient(apiKey, endpoint string) *RunPodClient {
+func NewRunPodClient(apiKey, graphqlEndpoint, restBaseURL string) *RunPodClient {
 	return &RunPodClient{
-		APIKey:   apiKey,
-		Endpoint: endpoint,
+		APIKey:          apiKey,
+		GraphQLEndpoint: graphqlEndpoint,
+		RestBaseURL:     restBaseURL,
+		Client: &http.Client{
+			Timeout: 60 * time.Second,
+		},
+	}
+}
+
+func NewRunPodClient2(apiKey, endpoint string) *RunPodClient {
+	restBaseURL := endpoint
+	if endpoint == "https://api.runpod.io/graphql" {
+		restBaseURL = "https://rest.runpod.io/v1"
+	}
+	return &RunPodClient{
+		APIKey:          apiKey,
+		GraphQLEndpoint: endpoint,
+		RestBaseURL:     restBaseURL,
 		Client: &http.Client{
 			Timeout: 60 * time.Second,
 		},
@@ -38,7 +55,7 @@ func (c *RunPodClient) Query(ctx context.Context, query string, variables map[st
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", c.Endpoint, bytes.NewBuffer(jsonBody))
+	req, err := http.NewRequestWithContext(ctx, "POST", c.GraphQLEndpoint, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

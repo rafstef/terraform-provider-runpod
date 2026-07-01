@@ -129,7 +129,7 @@ func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	p.client = client.NewRunPodClient(p.apiKey, p.graphqlUrl)
+	p.client = client.NewRunPodClient(p.apiKey, p.graphqlUrl, p.baseUrl)
 	resp.ResourceData = p.client
 	resp.DataSourceData = p.client
 

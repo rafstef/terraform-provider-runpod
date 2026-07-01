@@ -12,7 +12,32 @@ func NewMachineDataSource() datasource.DataSource {
 	return &MachineDataSource{}
 }
 
-type MachineDataSource struct{}
+type MachineDataSource struct {
+	client *client.RunPodClient
+}
+
+func (d *MachineDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData != nil {
+		d.client = req.ProviderData.(*client.RunPodClient)
+	}
+}
+
+func (d *MachineDataSource) getClient() *client.RunPodClient {
+	if d.client != nil {
+		return d.client
+	}
+	apiKey := os.Getenv("RUNPOD_API_KEY")
+	endpoint := os.Getenv("RUNPOD_GRAPHQL_URL")
+	if endpoint == "" {
+		endpoint = "https://api.runpod.io/graphql"
+	}
+	baseURL := os.Getenv("RUNPOD_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://rest.runpod.io/v1"
+	}
+	d.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
+	return d.client
+}
 
 func (d *MachineDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = "runpod_machine"
@@ -62,9 +87,8 @@ variables := map[string]interface{}{
 			"machineId": config.Id.ValueString(),
 		}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	runpodClient := client.NewRunPodClient(apiKey, client.GetGraphQLEndpoint())
-	result, err := runpodClient.Query(ctx, query, variables)
+	client := d.getClient()
+	result, err := client.Query(ctx, query, variables)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())
 		return

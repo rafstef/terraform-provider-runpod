@@ -19,7 +19,32 @@ func NewNetworkVolumeResource() resource.Resource {
 	return &NetworkVolumeResource{}
 }
 
-type NetworkVolumeResource struct{}
+type NetworkVolumeResource struct {
+	client *client.RunPodClient
+}
+
+func (r *NetworkVolumeResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData != nil {
+		r.client = req.ProviderData.(*client.RunPodClient)
+	}
+}
+
+func (r *NetworkVolumeResource) getClient() *client.RunPodClient {
+	if r.client != nil {
+		return r.client
+	}
+	apiKey := os.Getenv("RUNPOD_API_KEY")
+	endpoint := os.Getenv("RUNPOD_GRAPHQL_URL")
+	if endpoint == "" {
+		endpoint = "https://api.runpod.io/graphql"
+	}
+	baseURL := os.Getenv("RUNPOD_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://rest.runpod.io/v1"
+	}
+	r.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
+	return r.client
+}
 
 func (r *NetworkVolumeResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "runpod_network_volume"
@@ -37,13 +62,9 @@ func (r *NetworkVolumeResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/networkvolumes"
+	url := client.RestBaseURL + "/networkvolumes"
 
 	body := map[string]interface{}{
 		"name":        config.Name.ValueString(),
@@ -68,7 +89,7 @@ func (r *NetworkVolumeResource) Create(ctx context.Context, req resource.CreateR
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)
@@ -124,13 +145,9 @@ func (r *NetworkVolumeResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/networkvolumes/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/networkvolumes/" + state.Id.ValueString()
 
 	reqHTTP, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -139,7 +156,7 @@ func (r *NetworkVolumeResource) Read(ctx context.Context, req resource.ReadReque
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)
@@ -199,13 +216,9 @@ func (r *NetworkVolumeResource) Delete(ctx context.Context, req resource.DeleteR
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/networkvolumes/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/networkvolumes/" + state.Id.ValueString()
 
 	reqHTTP, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
@@ -214,7 +227,7 @@ func (r *NetworkVolumeResource) Delete(ctx context.Context, req resource.DeleteR
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)
@@ -251,13 +264,9 @@ func (r *NetworkVolumeResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/networkvolumes/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/networkvolumes/" + state.Id.ValueString()
 
 	body := map[string]interface{}{
 		"name": config.Name.ValueString(),
@@ -276,7 +285,7 @@ func (r *NetworkVolumeResource) Update(ctx context.Context, req resource.UpdateR
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)

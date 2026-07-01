@@ -20,7 +20,32 @@ func NewEndpointResource() resource.Resource {
 	return &EndpointResource{}
 }
 
-type EndpointResource struct{}
+type EndpointResource struct {
+	client *client.RunPodClient
+}
+
+func (r *EndpointResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData != nil {
+		r.client = req.ProviderData.(*client.RunPodClient)
+	}
+}
+
+func (r *EndpointResource) getClient() *client.RunPodClient {
+	if r.client != nil {
+		return r.client
+	}
+	apiKey := os.Getenv("RUNPOD_API_KEY")
+	endpoint := os.Getenv("RUNPOD_GRAPHQL_URL")
+	if endpoint == "" {
+		endpoint = "https://api.runpod.io/graphql"
+	}
+	baseURL := os.Getenv("RUNPOD_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://rest.runpod.io/v1"
+	}
+	r.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
+	return r.client
+}
 
 func (r *EndpointResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "runpod_endpoint"
@@ -38,13 +63,9 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/endpoints"
+	url := client.RestBaseURL + "/endpoints"
 
 	body := map[string]interface{}{
 		"templateId": config.TemplateId.ValueString(),
@@ -195,7 +216,7 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)
@@ -422,13 +443,9 @@ func (r *EndpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/endpoints/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/endpoints/" + state.Id.ValueString()
 
 	reqHTTP, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -437,7 +454,7 @@ func (r *EndpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)
@@ -646,13 +663,9 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/endpoints/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/endpoints/" + state.Id.ValueString()
 
 	body := map[string]interface{}{}
 
@@ -801,7 +814,7 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)
@@ -1001,13 +1014,9 @@ func (r *EndpointResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/endpoints/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/endpoints/" + state.Id.ValueString()
 
 	reqHTTP, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
@@ -1016,7 +1025,7 @@ func (r *EndpointResource) Delete(ctx context.Context, req resource.DeleteReques
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)

@@ -52,7 +52,7 @@ func podState(t *testing.T, m PodModel) tfsdk.State {
 func configureResourceWithTestClient(t *testing.T, r interface{ Configure(context.Context, resource.ConfigureRequest, *resource.ConfigureResponse) }, srv *httptest.Server) {
 	t.Helper()
 	req := resource.ConfigureRequest{
-		ProviderData: client.NewRunPodClient("test-key", srv.URL),
+		ProviderData: client.NewRunPodClient("test-key", "https://api.runpod.io/graphql", srv.URL),
 	}
 	resp := &resource.ConfigureResponse{}
 	r.Configure(context.Background(), req, resp)
