@@ -208,6 +208,11 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	}
 	defer respHTTP.Body.Close()
 
+	if respHTTP.StatusCode == 404 {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
 	respBody, err := io.ReadAll(respHTTP.Body)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to read response: %v", err))
@@ -217,11 +222,6 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	var result map[string]interface{}
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
-		return
-	}
-
-	if respHTTP.StatusCode == 404 {
-		resp.Diagnostics.AddWarning("Resource Not Found", "Pod not found - it may have been deleted outside of Terraform")
 		return
 	}
 
