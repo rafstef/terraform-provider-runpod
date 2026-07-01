@@ -166,7 +166,7 @@ func (r *TemplateResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	if respHTTP.StatusCode != 200 {
+	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create template (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
 	}
@@ -603,7 +603,7 @@ func (r *TemplateResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	if respHTTP.StatusCode != 200 {
+	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to update template (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
 	}

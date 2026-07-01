@@ -86,7 +86,7 @@ func (r *ContainerRegistryAuthResource) Create(ctx context.Context, req resource
 		return
 	}
 
-	if respHTTP.StatusCode != 200 {
+	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create container registry auth (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
 	}

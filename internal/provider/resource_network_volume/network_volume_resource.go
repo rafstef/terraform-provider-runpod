@@ -90,7 +90,7 @@ func (r *NetworkVolumeResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	if respHTTP.StatusCode != 200 {
+	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create network volume (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
 	}
@@ -298,7 +298,7 @@ func (r *NetworkVolumeResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	if respHTTP.StatusCode != 200 {
+	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to update network volume (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
 	}
