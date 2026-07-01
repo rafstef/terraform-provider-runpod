@@ -86,7 +86,8 @@ func TestPodRead_FullFieldMapping(t *testing.T) {
 }
 
 // TestPodUpdate_ManyFieldsInBody exercises Update's conditional body-build
-// branches by changing many fields vs prior state and asserting the PATCH body.
+// branches by changing fields that are valid for v1 PATCH /pods endpoint.
+// Valid PATCH fields: name, env, ports (array), volumeInGb, volumeMountPath, containerDiskInGb.
 func TestPodUpdate_ManyFieldsInBody(t *testing.T) {
 	ctx := context.Background()
 	sch := PodResourceSchema(ctx)
@@ -94,31 +95,23 @@ func TestPodUpdate_ManyFieldsInBody(t *testing.T) {
 	prior := baseModel()
 	prior.Id = types.StringValue("pod-1")
 	prior.Name = types.StringValue("old")
-	prior.GpuTypeId = types.StringValue("NVIDIA GPU")
-	prior.MachineId = types.StringValue("m-old")
+	prior.VolumeInGb = types.Float64Value(40)
+	prior.VolumeMountPath = types.StringValue("/old")
 	prior.ContainerDiskInGb = types.Int64Value(20)
-	prior.VolumeKey = types.StringValue("oldkey")
 
 	desired := baseModel()
 	desired.Id = types.StringValue("pod-1")
 	desired.Name = types.StringValue("new")
-	desired.GpuTypeId = types.StringValue("NVIDIA A100")
-	desired.MachineId = types.StringValue("m-1")
-	desired.ContainerDiskInGb = types.Int64Value(30)
-	desired.VolumeKey = types.StringValue("mykey")
-	desired.GpuCount = types.Int64Value(2)
-	desired.CloudType = types.StringValue("SECURE")
-	desired.DockerArgs = types.StringValue("--foo")
-	desired.Env = types.ListValueMust(types.StringType, []attr.Value{types.StringValue("K=V")})
-	desired.Port = types.Int64Value(8080)
-	desired.Ports = types.StringValue("8080/http")
-	desired.StartSsh = types.BoolValue(true)
-	desired.StartJupyter = types.BoolValue(true)
-	desired.StopAfter = types.StringValue("1h")
-	desired.TerminateAfter = types.StringValue("2h")
 	desired.VolumeInGb = types.Float64Value(50)
 	desired.VolumeMountPath = types.StringValue("/data")
-	desired.BidPerGpu = types.Float64Value(1.5)
+	desired.ContainerDiskInGb = types.Int64Value(30)
+
+	envList := types.ListValueMust(types.StringType, []attr.Value{
+		types.StringValue("K=V"),
+	})
+	desired.Env = envList
+
+	desired.Ports = types.StringValue("8080/http,8443/https")
 
 	var body map[string]interface{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -136,12 +129,24 @@ func TestPodUpdate_ManyFieldsInBody(t *testing.T) {
 		t.Fatalf("Update errored: %v", resp.Diagnostics.Errors())
 	}
 
-	for _, k := range []string{"name", "gpuCount", "cloudType", "dockerArgs", "env", "startSsh", "startJupyter", "stopAfter", "terminateAfter", "volumeMountPath", "gpuTypeId", "machineId", "containerDiskInGb", "volumeKey", "port", "bidPerGpu"} {
+	validFields := []string{"name", "env", "ports", "volumeInGb", "volumeMountPath", "containerDiskInGb"}
+	for _, k := range validFields {
 		if _, ok := body[k]; !ok {
 			t.Errorf("PATCH body missing %q; got %v", k, body)
 		}
 	}
 	if body["name"] != "new" {
 		t.Errorf("body name = %v, want new", body["name"])
+	}
+
+	if portsArray, ok := body["ports"].([]interface{}); ok {
+		if len(portsArray) != 2 {
+			t.Errorf("ports array length = %d, want 2", len(portsArray))
+		}
+		if portsArray[0] != "8080/http" || portsArray[1] != "8443/https" {
+			t.Errorf("ports array = %v, want [\"8080/http\",\"8443/https\"]", portsArray)
+		}
+	} else {
+		t.Errorf("ports not found or not an array: %v", body["ports"])
 	}
 }
