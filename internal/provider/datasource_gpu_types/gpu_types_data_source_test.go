@@ -4,10 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 )
 
@@ -23,7 +23,7 @@ import (
 // State.Set. When the schema/Read shape is fixed (schema becomes a list/nested
 // attribute, or Read sets a single object), State.Set will succeed — flip this
 // to assert the parsed gpu list.
-func TestGpuTypesRead_BlockedBySliceSchemaMismatch(t *testing.T) {
+func TestGpuTypesRead_PopulatesState(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"data":{"gpuTypes":[{"id":"g1","displayName":"A100","manufacturer":"NVIDIA","cuda_cores":6912,"memory_in_gb":80,"community_price":1.0,"secure_price":2.0,"secure_cloud":true}]}}`))
 	}))
@@ -35,15 +35,22 @@ func TestGpuTypesRead_BlockedBySliceSchemaMismatch(t *testing.T) {
 	resp := &datasource.ReadResponse{State: tfsdk.State{Schema: GpuTypesDataSourceSchema(ctx)}}
 	(&GpuTypesDataSource{}).Read(ctx, datasource.ReadRequest{}, resp)
 
-	if !resp.Diagnostics.HasError() {
-		t.Fatal("Read now succeeds — the slice/object schema bug looks fixed; flip this to assert the gpu list")
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected Read to succeed, got diags=%v", resp.Diagnostics)
 	}
-	// The CE-1652 unwrap-failure branch reported "Failed to ... from response".
-	// After PR #20 that must be gone; the only remaining error is the unrelated
-	// State.Set slice/object conversion.
-	for _, d := range resp.Diagnostics.Errors() {
-		if strings.Contains(d.Detail(), "Failed to") {
-			t.Fatalf("CE-1652 regression: double-unwrap is back: %v", resp.Diagnostics)
-		}
+
+	var state GpuTypesDataSourceModel
+	diags := resp.State.Get(ctx, &state)
+	if diags.HasError() {
+		t.Fatalf("expected to read state back, got diags=%v", diags)
+	}
+	if len(state.GpuTypes) != 1 {
+		t.Fatalf("expected 1 GPU type, got %d", len(state.GpuTypes))
+	}
+	if state.GpuTypes[0].Id != types.StringValue("g1") {
+		t.Errorf("GPU type ID: want %q, got %v", "g1", state.GpuTypes[0].Id)
+	}
+	if state.GpuTypes[0].DisplayName != types.StringValue("A100") {
+		t.Errorf("GPU type name: want %q, got %v", "A100", state.GpuTypes[0].DisplayName)
 	}
 }

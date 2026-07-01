@@ -12,45 +12,54 @@ import (
 func MachinesDataSourceSchema(ctx context.Context) schema.Schema {
 	return schema.Schema{
 		Attributes: map[string]schema.Attribute{
-			"data_center_id": schema.StringAttribute{
+			"machines": schema.ListNestedAttribute{
 				Computed:            true,
-				Description:         "Data center ID",
-				MarkdownDescription: "Data center ID",
-			},
-			"gpu_total": schema.Int64Attribute{
-				Computed:            true,
-				Description:         "Total GPU count",
-				MarkdownDescription: "Total GPU count",
-			},
-			"gpu_type_id": schema.StringAttribute{
-				Computed:            true,
-				Description:         "GPU type ID",
-				MarkdownDescription: "GPU type ID",
-			},
-			"id": schema.StringAttribute{
-				Computed:            true,
-				Description:         "Machine ID",
-				MarkdownDescription: "Machine ID",
-			},
-			"listed": schema.BoolAttribute{
-				Computed:            true,
-				Description:         "Whether machine is listed",
-				MarkdownDescription: "Whether machine is listed",
-			},
-			"location": schema.StringAttribute{
-				Computed:            true,
-				Description:         "Location",
-				MarkdownDescription: "Location",
-			},
-			"name": schema.StringAttribute{
-				Computed:            true,
-				Description:         "Machine name",
-				MarkdownDescription: "Machine name",
-			},
-			"secure_cloud": schema.BoolAttribute{
-				Computed:            true,
-				Description:         "Whether machine is in secure cloud",
-				MarkdownDescription: "Whether machine is in secure cloud",
+				Description:         "List of machines",
+				MarkdownDescription: "List of machines",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"data_center_id": schema.StringAttribute{
+							Computed:            true,
+							Description:         "Data center ID",
+							MarkdownDescription: "Data center ID",
+						},
+						"gpu_total": schema.Int64Attribute{
+							Computed:            true,
+							Description:         "Total GPU count",
+							MarkdownDescription: "Total GPU count",
+						},
+						"gpu_type_id": schema.StringAttribute{
+							Computed:            true,
+							Description:         "GPU type ID",
+							MarkdownDescription: "GPU type ID",
+						},
+						"id": schema.StringAttribute{
+							Computed:            true,
+							Description:         "Machine ID",
+							MarkdownDescription: "Machine ID",
+						},
+						"listed": schema.BoolAttribute{
+							Computed:            true,
+							Description:         "Whether machine is listed",
+							MarkdownDescription: "Whether machine is listed",
+						},
+						"location": schema.StringAttribute{
+							Computed:            true,
+							Description:         "Location",
+							MarkdownDescription: "Location",
+						},
+						"name": schema.StringAttribute{
+							Computed:            true,
+							Description:         "Machine name",
+							MarkdownDescription: "Machine name",
+						},
+						"secure_cloud": schema.BoolAttribute{
+							Computed:            true,
+							Description:         "Whether machine is in secure cloud",
+							MarkdownDescription: "Whether machine is in secure cloud",
+						},
+					},
+				},
 			},
 		},
 	}
@@ -65,4 +74,8 @@ type MachinesModel struct {
 	Location     types.String `tfsdk:"location"`
 	Name         types.String `tfsdk:"name"`
 	SecureCloud  types.Bool   `tfsdk:"secure_cloud"`
+}
+
+type MachinesDataSourceModel struct {
+	Machines []MachinesModel `tfsdk:"machines"`
 }
