@@ -23,7 +23,7 @@ func TestMachineDataSourceRead_PopulatesState(t *testing.T) {
 			"name":"machine-one",
 			"location":"US-CA",
 			"listed":true,
-			"gpuType":{"id":"g1","name":"NVIDIA A100"},
+			"gpuType":{"id":"g1","displayName":"NVIDIA A100"},
 			"gpuTotal":8,
 			"gpuReserved":2,
 			"cpuCount":64,

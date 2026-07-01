@@ -25,7 +25,7 @@ import (
 // to assert the parsed machines list.
 func TestMachinesRead_BlockedBySliceSchemaMismatch(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"data":{"machines":[{"id":"m-123","name":"node-a","location":"US-CA","listed":true,"gpuType":{"id":"g1","name":"NVIDIA RTX 4090"},"gpuTotal":8,"secureCloud":true,"dataCenterId":"US-CA-1"}]}}`))
+		_, _ = w.Write([]byte(`{"data":{"machines":[{"id":"m-123","name":"node-a","location":"US-CA","listed":true,"gpuType":{"id":"g1","displayName":"NVIDIA RTX 4090"},"gpuTotal":8,"secureCloud":true,"dataCenterId":"US-CA-1"}]}}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
