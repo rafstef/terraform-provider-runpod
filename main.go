@@ -121,7 +121,7 @@ func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	log.Printf("Using API key: %s\n", p.apiKey[:8]+"...")
+	log.Println("API key configured")
 	log.Printf("API base URL: %s\n", p.baseUrl)
 	log.Printf("GraphQL URL: %s\n", p.graphqlUrl)
 }
