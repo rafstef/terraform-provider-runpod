@@ -25,7 +25,7 @@ func (d *UserDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	query := `
 		query GetUser {
-			user {
+			myself {
 				id
 				pubKey
 			}
@@ -42,7 +42,7 @@ func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	if user, ok := result["user"].(map[string]interface{}); ok {
+	if user, ok := result["myself"].(map[string]interface{}); ok {
 		model := UserModel{
 			Id:     types.StringValue(user["id"].(string)),
 			PubKey: types.StringValue(user["pubKey"].(string)),

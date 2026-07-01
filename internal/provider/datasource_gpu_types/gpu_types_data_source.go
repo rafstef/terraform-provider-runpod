@@ -25,7 +25,7 @@ func (d *GpuTypesDataSource) Schema(ctx context.Context, req datasource.SchemaRe
 func (d *GpuTypesDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	query := `
 		query GetGpuTypes {
-			gpus {
+			gpuTypes {
 				id
 				displayName
 				manufacturer
@@ -48,7 +48,7 @@ func (d *GpuTypesDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
-	if gpus, ok := result["gpus"].([]interface{}); ok {
+	if gpus, ok := result["gpuTypes"].([]interface{}); ok {
 		models := make([]GpuTypesModel, len(gpus))
 		for i, gpu := range gpus {
 			if gpuMap, ok := gpu.(map[string]interface{}); ok {

@@ -30,7 +30,10 @@ func (d *MachinesDataSource) Read(ctx context.Context, req datasource.ReadReques
 				name
 				location
 				listed
-				gpuType
+				gpuType {
+					id
+					displayName
+				}
 				gpuTotal
 				secureCloud
 				dataCenterId
@@ -52,12 +55,19 @@ func (d *MachinesDataSource) Read(ctx context.Context, req datasource.ReadReques
 		models := make([]MachinesModel, len(machines))
 		for i, machine := range machines {
 			if machineMap, ok := machine.(map[string]interface{}); ok {
+				gpuTypeMap, ok := machineMap["gpuType"].(map[string]interface{})
+				gpuTypeId := types.StringValue("")
+				if ok {
+					if id, ok := gpuTypeMap["id"].(string); ok {
+						gpuTypeId = types.StringValue(id)
+					}
+				}
 				models[i] = MachinesModel{
 					Id:           types.StringValue(machineMap["id"].(string)),
 					Name:         types.StringValue(machineMap["name"].(string)),
 					Location:     types.StringValue(machineMap["location"].(string)),
 					Listed:       types.BoolValue(machineMap["listed"].(bool)),
-					GpuTypeId:    types.StringValue(machineMap["gpuType"].(string)),
+					GpuTypeId:    gpuTypeId,
 					GpuTotal:     types.Int64Value(int64(machineMap["gpuTotal"].(float64))),
 					SecureCloud:  types.BoolValue(machineMap["secureCloud"].(bool)),
 					DataCenterId: types.StringValue(machineMap["dataCenterId"].(string)),

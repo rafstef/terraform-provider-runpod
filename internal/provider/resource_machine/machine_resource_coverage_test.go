@@ -185,7 +185,7 @@ func TestMachineCreate_APIError(t *testing.T) {
 }
 
 func TestMachineCreate_MachineCreateMissing(t *testing.T) {
-	// 200 with data but no machineCreate key -> "machineCreate not in response".
+	// 200 with data but no machineAdd key -> "machineAdd not in response".
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"data":{"nope":{}}}`))
 	}))
@@ -198,14 +198,14 @@ func TestMachineCreate_MachineCreateMissing(t *testing.T) {
 	(&MachineResource{}).Create(context.Background(), resource.CreateRequest{Config: machineConfig(t, m)}, resp)
 
 	if !resp.Diagnostics.HasError() {
-		t.Fatal("expected 'machineCreate not in response' diagnostics error, got none")
+		t.Fatal("expected 'machineAdd not in response' diagnostics error, got none")
 	}
 }
 
 func TestMachineCreate_IDMissing(t *testing.T) {
 	// machineCreate present but without an "id" -> "Failed to get machine ID" branch.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"data":{"machineCreate":{"name":"n"}}}`))
+		_, _ = w.Write([]byte(`{"data":{"machineAdd":{"name":"n"}}}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")

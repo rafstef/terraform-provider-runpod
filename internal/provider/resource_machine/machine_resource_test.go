@@ -24,11 +24,11 @@ func machineConfig(t *testing.T, m MachineModel) tfsdk.Config {
 
 // TestMachineCreate_SetsID is a regression test for the CE-1652 fix (PR #20).
 // client.Query() now returns the inner GraphQL `data` map directly, so Create
-// reads result["machineCreate"]["id"] and sets config.Id. A valid GraphQL
+// reads result["machineAdd"]["id"] and sets config.Id. A valid GraphQL
 // response must now succeed and populate the state Id.
 func TestMachineCreate_SetsID(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"data":{"machineCreate":{"id":"m1","name":"n"}}}`))
+		_, _ = w.Write([]byte(`{"data":{"machineAdd":{"id":"m1","name":"n"}}}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
@@ -97,7 +97,7 @@ func TestMachineUpdate_UsesConfiguredEndpoint(t *testing.T) {
 	var hit bool
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hit = true
-		_, _ = w.Write([]byte(`{"data":{"machineEdit":{"id":"m1"}}}`))
+		_, _ = w.Write([]byte(`{"data":{"machineEditName":{"id":"m1"}}}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
