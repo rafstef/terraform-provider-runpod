@@ -43,9 +43,25 @@ func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	if user, ok := result["myself"].(map[string]interface{}); ok {
+		var idVal, pubKeyVal string
+		
+		if id, ok := user["id"].(string); ok {
+			idVal = id
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'id' is missing or not a string in user response")
+			return
+		}
+		
+		if pubKey, ok := user["pubKey"].(string); ok {
+			pubKeyVal = pubKey
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'pubKey' is missing or not a string in user response")
+			return
+		}
+		
 		model := UserModel{
-			Id:     types.StringValue(user["id"].(string)),
-			PubKey: types.StringValue(user["pubKey"].(string)),
+			Id:     types.StringValue(idVal),
+			PubKey: types.StringValue(pubKeyVal),
 		}
 		diags := resp.State.Set(ctx, &model)
 		if diags.HasError() {

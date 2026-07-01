@@ -47,10 +47,33 @@ func (d *ContainerRegistryAuthDataSource) Read(ctx context.Context, req datasour
 		models := make([]ContainerRegistryAuthModel, len(auths))
 		for i, auth := range auths {
 			if authMap, ok := auth.(map[string]interface{}); ok {
+				var id, name, username string
+				
+				if v, ok := authMap["id"].(string); ok {
+					id = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'id' is missing or not a string in container registry auth response")
+					return
+				}
+				
+				if v, ok := authMap["name"].(string); ok {
+					name = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'name' is missing or not a string in container registry auth response")
+					return
+				}
+				
+				if v, ok := authMap["username"].(string); ok {
+					username = v
+				} else {
+					resp.Diagnostics.AddError("API Error", "Field 'username' is missing or not a string in container registry auth response")
+					return
+				}
+				
 				models[i] = ContainerRegistryAuthModel{
-					Id:       types.StringValue(authMap["id"].(string)),
-					Name:     types.StringValue(authMap["name"].(string)),
-					Username: types.StringValue(authMap["username"].(string)),
+					Id:       types.StringValue(id),
+					Name:     types.StringValue(name),
+					Username: types.StringValue(username),
 				}
 			}
 		}

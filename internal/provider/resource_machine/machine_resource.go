@@ -149,18 +149,95 @@ variables := map[string]interface{}{
 	}
 
 	if machine, ok := result["machine"].(map[string]interface{}); ok {
-		config.Name = types.StringValue(machine["name"].(string))
-		config.GpuCount = types.Int64Value(int64(machine["gpuCount"].(float64)))
-		config.GpuTypeId = types.StringValue(machine["gpuType"].(string))
-		config.CpuCount = types.Int64Value(int64(machine["cpuCount"].(float64)))
-		config.MemoryInGb = types.Int64Value(int64(machine["memoryInGb"].(float64)))
-		config.DiskInGb = types.Int64Value(int64(machine["diskSizeInGb"].(float64)))
-		config.Location = types.StringValue(machine["region"].(string))
-		config.Listed = types.BoolValue(machine["listed"].(bool))
-		config.SecureCloud = types.BoolValue(machine["secureCloud"].(bool))
-		config.MaintenanceMode = types.BoolValue(machine["maintenanceMode"].(bool))
-		config.Verified = types.BoolValue(machine["verified"].(bool))
-		config.HostPricePerGpu = types.Float64Value(machine["hostPricePerGpu"].(float64))
+		var name, gpuType string
+		
+		if v, ok := machine["name"].(string); ok {
+			name = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'name' is missing or not a string in machine response")
+			return
+		}
+		
+		if v, ok := machine["gpuCount"].(float64); ok {
+			config.GpuCount = types.Int64Value(int64(v))
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'gpuCount' is missing or not a float64 in machine response")
+			return
+		}
+		
+		if v, ok := machine["gpuType"].(string); ok {
+			gpuType = v
+			config.GpuTypeId = types.StringValue(v)
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'gpuType' is missing or not a string in machine response")
+			return
+		}
+		
+		if v, ok := machine["cpuCount"].(float64); ok {
+			config.CpuCount = types.Int64Value(int64(v))
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'cpuCount' is missing or not a float64 in machine response")
+			return
+		}
+		
+		if v, ok := machine["memoryInGb"].(float64); ok {
+			config.MemoryInGb = types.Int64Value(int64(v))
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'memoryInGb' is missing or not a float64 in machine response")
+			return
+		}
+		
+		if v, ok := machine["diskSizeInGb"].(float64); ok {
+			config.DiskInGb = types.Int64Value(int64(v))
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'diskSizeInGb' is missing or not a float64 in machine response")
+			return
+		}
+		
+		if v, ok := machine["region"].(string); ok {
+			config.Location = types.StringValue(v)
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'region' is missing or not a string in machine response")
+			return
+		}
+		
+		if v, ok := machine["listed"].(bool); ok {
+			config.Listed = types.BoolValue(v)
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'listed' is missing or not a bool in machine response")
+			return
+		}
+		
+		if v, ok := machine["secureCloud"].(bool); ok {
+			config.SecureCloud = types.BoolValue(v)
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'secureCloud' is missing or not a bool in machine response")
+			return
+		}
+		
+		if v, ok := machine["maintenanceMode"].(bool); ok {
+			config.MaintenanceMode = types.BoolValue(v)
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'maintenanceMode' is missing or not a bool in machine response")
+			return
+		}
+		
+		if v, ok := machine["verified"].(bool); ok {
+			config.Verified = types.BoolValue(v)
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'verified' is missing or not a bool in machine response")
+			return
+		}
+		
+		if v, ok := machine["hostPricePerGpu"].(float64); ok {
+			config.HostPricePerGpu = types.Float64Value(v)
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'hostPricePerGpu' is missing or not a float64 in machine response")
+			return
+		}
+		
+		config.Name = types.StringValue(name)
+		config.GpuTypeId = types.StringValue(gpuType)
 	} else {
 		resp.Diagnostics.AddError("API Error", "Machine not found in response")
 		return

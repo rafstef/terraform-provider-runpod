@@ -75,27 +75,149 @@ variables := map[string]interface{}{
 			resp.Diagnostics.Append(diags...)
 			return
 		}
-
+		
+		var name, status, desiredStatus, imageName, machineId, machineType, gpuTypeId, ports, createdAt, dockerArgs, templateId, volumeMountPath string
+		var gpuCount, costPerHr, memoryInGb, volumeInGb, containerDiskInGb float64
+		
+		if v, ok := pod["name"].(string); ok {
+			name = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'name' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["status"].(string); ok {
+			status = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'status' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["desiredStatus"].(string); ok {
+			desiredStatus = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'desiredStatus' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["imageName"].(string); ok {
+			imageName = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'imageName' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["machineId"].(string); ok {
+			machineId = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'machineId' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["machineType"].(string); ok {
+			machineType = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'machineType' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["gpuTypeId"].(string); ok {
+			gpuTypeId = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'gpuTypeId' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["gpuCount"].(float64); ok {
+			gpuCount = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'gpuCount' is missing or not a float64 in pod response")
+			return
+		}
+		
+		if v, ok := pod["costPerHr"].(float64); ok {
+			costPerHr = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'costPerHr' is missing or not a float64 in pod response")
+			return
+		}
+		
+		if v, ok := pod["memoryInGb"].(float64); ok {
+			memoryInGb = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'memoryInGb' is missing or not a float64 in pod response")
+			return
+		}
+		
+		if v, ok := pod["volumeInGb"].(float64); ok {
+			volumeInGb = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'volumeInGb' is missing or not a float64 in pod response")
+			return
+		}
+		
+		if v, ok := pod["volumeMountPath"].(string); ok {
+			volumeMountPath = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'volumeMountPath' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["ports"].(string); ok {
+			ports = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'ports' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["created_at"].(string); ok {
+			createdAt = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'created_at' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["dockerArgs"].(string); ok {
+			dockerArgs = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'dockerArgs' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["templateId"].(string); ok {
+			templateId = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'templateId' is missing or not a string in pod response")
+			return
+		}
+		
+		if v, ok := pod["containerDiskInGb"].(float64); ok {
+			containerDiskInGb = v
+		} else {
+			resp.Diagnostics.AddError("API Error", "Field 'containerDiskInGb' is missing or not a float64 in pod response")
+			return
+		}
+		
 		model := PodModel{
 			Id:                config.Id,
-			Name:              types.StringValue(pod["name"].(string)),
-			Status:            types.StringValue(pod["status"].(string)),
-			DesiredStatus:     types.StringValue(pod["desiredStatus"].(string)),
-			ImageName:         types.StringValue(pod["imageName"].(string)),
-			MachineId:         types.StringValue(pod["machineId"].(string)),
-			MachineType:       types.StringValue(pod["machineType"].(string)),
-			GpuTypeId:         types.StringValue(pod["gpuTypeId"].(string)),
-			GpuCount:          types.Int64Value(int64(pod["gpuCount"].(float64))),
-			CostPerHr:         types.Float64Value(pod["costPerHr"].(float64)),
-			MemoryInGb:        types.Float64Value(pod["memoryInGb"].(float64)),
-			VolumeInGb:        types.Float64Value(pod["volumeInGb"].(float64)),
-			VolumeMountPath:   types.StringValue(pod["volumeMountPath"].(string)),
-			Ports:             types.StringValue(pod["ports"].(string)),
-			CreatedAt:         types.StringValue(pod["created_at"].(string)),
-			DockerArgs:        types.StringValue(pod["dockerArgs"].(string)),
+			Name:              types.StringValue(name),
+			Status:            types.StringValue(status),
+			DesiredStatus:     types.StringValue(desiredStatus),
+			ImageName:         types.StringValue(imageName),
+			MachineId:         types.StringValue(machineId),
+			MachineType:       types.StringValue(machineType),
+			GpuTypeId:         types.StringValue(gpuTypeId),
+			GpuCount:          types.Int64Value(int64(gpuCount)),
+			CostPerHr:         types.Float64Value(costPerHr),
+			MemoryInGb:        types.Float64Value(memoryInGb),
+			VolumeInGb:        types.Float64Value(volumeInGb),
+			VolumeMountPath:   types.StringValue(volumeMountPath),
+			Ports:             types.StringValue(ports),
+			CreatedAt:         types.StringValue(createdAt),
+			DockerArgs:        types.StringValue(dockerArgs),
 			Env:               envListValue,
-			TemplateId:        types.StringValue(pod["templateId"].(string)),
-			ContainerDiskInGb: types.Int64Value(int64(pod["containerDiskInGb"].(float64))),
+			TemplateId:        types.StringValue(templateId),
+			ContainerDiskInGb: types.Int64Value(int64(containerDiskInGb)),
 		}
 		diags = resp.State.Set(ctx, &model)
 		if diags.HasError() {
