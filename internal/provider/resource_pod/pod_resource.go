@@ -230,20 +230,17 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
-	if val, ok := result["status"].(string); ok && val != "" {
+	if val, ok := result["desiredStatus"].(string); ok && val != "" {
 		state.Status = types.StringValue(val)
 	}
-	if val, ok := result["gpuTypeId"].(string); ok && val != "" {
-		state.GpuTypeId = types.StringValue(val)
+	if val, ok := result["createdAt"].(string); ok && val != "" {
+		state.CreatedAt = types.StringValue(val)
 	}
 	if val, ok := result["machineId"].(string); ok && val != "" {
 		state.MachineId = types.StringValue(val)
 	}
 	if val, ok := result["costPerHr"].(float64); ok {
 		state.CostPerHr = types.Float64Value(val)
-	}
-	if val, ok := result["created_at"].(string); ok && val != "" {
-		state.CreatedAt = types.StringValue(val)
 	}
 	if val, ok := result["memoryInGb"].(float64); ok {
 		state.MemoryInGb = types.Float64Value(val)
@@ -260,9 +257,13 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 			state.TemplateId = types.StringValue(val)
 		}
 	}
-	if result["cloudType"] != nil {
-		if val, ok := result["cloudType"].(string); ok && val != "" {
-			state.CloudType = types.StringValue(val)
+
+	if machine, ok := result["machine"].(map[string]interface{}); ok {
+		if val, ok := machine["gpuTypeId"].(string); ok && val != "" {
+			state.GpuTypeId = types.StringValue(val)
+		}
+		if _, ok := machine["secureCloud"].(bool); ok {
+			state.CloudType = types.StringValue("SECURE")
 		}
 	}
 

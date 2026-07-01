@@ -155,7 +155,7 @@ func TestPodRead_UsesConfiguredBaseURL(t *testing.T) {
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
-		_, _ = w.Write([]byte(`{"status":"RUNNING","costPerHr":0.5}`))
+		_, _ = w.Write([]byte(`{"desiredStatus":"RUNNING","costPerHr":0.5}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
@@ -338,15 +338,18 @@ func TestPodRead_FieldMapping(t *testing.T) {
 	if out.CostPerHr.ValueFloat64() != 0.5 {
 		t.Errorf("costPerHr = %v, want 0.5", out.CostPerHr.ValueFloat64())
 	}
-	// CE-1658: these stay empty because Read maps field names the v1 API doesn't use.
-	if out.Status.ValueString() != "" {
-		t.Errorf("status = %q; expected empty (CE-1658: Read maps 'status', API returns 'desiredStatus') — CE-1658 may be FIXED", out.Status.ValueString())
+	// CE-1658 FIXED: Read now maps the correct API field names.
+	if out.Status.ValueString() != "RUNNING" {
+		t.Errorf("status = %q, want RUNNING (CE-1658: API returns 'desiredStatus')", out.Status.ValueString())
 	}
-	if out.CreatedAt.ValueString() != "" {
-		t.Errorf("created_at = %q; expected empty (CE-1658: Read maps 'created_at', API returns 'createdAt') — CE-1658 may be FIXED", out.CreatedAt.ValueString())
+	if out.CreatedAt.ValueString() != "2026-06-25T00:00:00Z" {
+		t.Errorf("created_at = %q, want 2026-06-25T00:00:00Z (CE-1658: API returns 'createdAt')", out.CreatedAt.ValueString())
 	}
-	if out.GpuTypeId.ValueString() != "" {
-		t.Errorf("gpu_type_id = %q; expected empty (CE-1658: not read from nested machine.gpuTypeId) — CE-1658 may be FIXED", out.GpuTypeId.ValueString())
+	if out.GpuTypeId.ValueString() != "NVIDIA GeForce RTX 4090" {
+		t.Errorf("gpu_type_id = %q, want NVIDIA GeForce RTX 4090 (CE-1658: read from machine.gpuTypeId)", out.GpuTypeId.ValueString())
+	}
+	if out.CloudType.ValueString() != "SECURE" {
+		t.Errorf("cloud_type = %q, want SECURE (CE-1658: read from machine.secureCloud)", out.CloudType.ValueString())
 	}
 }
 
