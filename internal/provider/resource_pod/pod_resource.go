@@ -91,36 +91,27 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		body["networkVolumeId"] = config.NetworkVolumeId.ValueString()
 	}
 
-	if !config.DockerEntrypoint.IsNull() && len(config.DockerEntrypoint.Elements()) > 0 {
-		entrypoint := make([]string, 0)
-		for _, element := range config.DockerEntrypoint.Elements() {
-			if strVal, ok := element.(types.String); ok {
-				entrypoint = append(entrypoint, strVal.ValueString())
+	if !config.ContainerDiskInGb.IsNull() {
+		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
+	}
+
+	if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
+		body["volumeMountPath"] = config.VolumeMountPath.ValueString()
+	}
+
+	if !config.Env.IsNull() && len(config.Env.Elements()) > 0 {
+		envMap := make(map[string]interface{})
+		for _, element := range config.Env.Elements() {
+			if elementStr, ok := element.(types.String); ok {
+				parts := strings.SplitN(elementStr.ValueString(), "=", 2)
+				if len(parts) == 2 {
+					envMap[parts[0]] = parts[1]
+				}
 			}
 		}
-		if len(entrypoint) > 0 {
-			body["dockerEntrypoint"] = entrypoint
+		if len(envMap) > 0 {
+			body["env"] = envMap
 		}
-	}
-
-	if !config.DockerStartCmd.IsNull() && len(config.DockerStartCmd.Elements()) > 0 {
-		startCmd := make([]string, 0)
-		for _, element := range config.DockerStartCmd.Elements() {
-			if strVal, ok := element.(types.String); ok {
-				startCmd = append(startCmd, strVal.ValueString())
-			}
-		}
-		if len(startCmd) > 0 {
-			body["dockerStartCmd"] = startCmd
-		}
-	}
-
-	if !config.Interruptible.IsNull() {
-		body["interruptible"] = config.Interruptible.ValueBool()
-	}
-
-	if !config.VolumeEncrypted.IsNull() {
-		body["volumeEncrypted"] = config.VolumeEncrypted.ValueBool()
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -368,22 +359,6 @@ func (r *PodResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		body["name"] = config.Name.ValueString()
 	}
 
-	if !config.GpuCount.IsNull() && config.GpuCount.ValueInt64() != state.GpuCount.ValueInt64() {
-		body["gpuCount"] = int64(config.GpuCount.ValueInt64())
-	}
-
-	if !config.CloudType.IsNull() && config.CloudType.ValueString() != state.CloudType.ValueString() {
-		body["cloudType"] = config.CloudType.ValueString()
-	}
-
-	if !config.BidPerGpu.IsNull() {
-		body["bidPerGpu"] = config.BidPerGpu.ValueFloat64()
-	}
-
-	if !config.DockerArgs.IsNull() && config.DockerArgs.ValueString() != state.DockerArgs.ValueString() {
-		body["dockerArgs"] = config.DockerArgs.ValueString()
-	}
-
 	if !config.Env.IsNull() {
 		envMap := make(map[string]interface{})
 		for _, element := range config.Env.Elements() {
@@ -399,28 +374,21 @@ func (r *PodResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		}
 	}
 
-	if !config.Port.IsNull() && config.Port.ValueInt64() != state.Port.ValueInt64() {
-		body["port"] = int64(config.Port.ValueInt64())
-	}
-
 	if !config.Ports.IsNull() && config.Ports.ValueString() != state.Ports.ValueString() {
-		body["ports"] = config.Ports.ValueString()
-	}
-
-	if !config.StartSsh.IsNull() && config.StartSsh.ValueBool() != state.StartSsh.ValueBool() {
-		body["startSsh"] = config.StartSsh.ValueBool()
-	}
-
-	if !config.StartJupyter.IsNull() && config.StartJupyter.ValueBool() != state.StartJupyter.ValueBool() {
-		body["startJupyter"] = config.StartJupyter.ValueBool()
-	}
-
-	if !config.StopAfter.IsNull() && config.StopAfter.ValueString() != state.StopAfter.ValueString() {
-		body["stopAfter"] = config.StopAfter.ValueString()
-	}
-
-	if !config.TerminateAfter.IsNull() && config.TerminateAfter.ValueString() != state.TerminateAfter.ValueString() {
-		body["terminateAfter"] = config.TerminateAfter.ValueString()
+		portsStr := config.Ports.ValueString()
+		if portsStr != "" {
+			portsArray := strings.Split(portsStr, ",")
+			portsArrayCleaned := make([]string, 0)
+			for _, p := range portsArray {
+				trimmed := strings.TrimSpace(p)
+				if trimmed != "" {
+					portsArrayCleaned = append(portsArrayCleaned, trimmed)
+				}
+			}
+			if len(portsArrayCleaned) > 0 {
+				body["ports"] = portsArrayCleaned
+			}
+		}
 	}
 
 	if !config.VolumeInGb.IsNull() && config.VolumeInGb.ValueFloat64() != state.VolumeInGb.ValueFloat64() {
@@ -429,6 +397,10 @@ func (r *PodResource) Update(ctx context.Context, req resource.UpdateRequest, re
 
 	if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != state.VolumeMountPath.ValueString() {
 		body["volumeMountPath"] = config.VolumeMountPath.ValueString()
+	}
+
+	if !config.ContainerDiskInGb.IsNull() && config.ContainerDiskInGb.ValueInt64() != state.ContainerDiskInGb.ValueInt64() {
+		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
 
 	if len(body) == 0 {

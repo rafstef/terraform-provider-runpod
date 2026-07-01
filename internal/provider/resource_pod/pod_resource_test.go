@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -401,13 +402,13 @@ func TestPodRead_TopLevelCloudTypeFallback(t *testing.T) {
 	}
 }
 
-// TestPodCreate_DropsMostConfigAttributes characterizes a gap: Create only sends
-// gpuCount/name/template|image/cloudType/volumeInGb. Other input attributes a user
-// sets (gpu_type_id, docker_args, container_disk_in_gb, start_ssh, start_jupyter,
-// machine_id, stop_after, …) are silently dropped — never put in the request body,
-// so the API never receives them. Green now (documents the drop); when Create is
-// fixed to forward these, the absence assertions flip.
-func TestPodCreate_DropsMostConfigAttributes(t *testing.T) {
+// TestPodCreate_ValidAttributes verifies that Create only forwards attributes
+// that are valid for the v1 POST /pods endpoint. Fields like gpuTypeId (scalar),
+// machineId, dockerArgs, startSsh, startJupyter, stopAfter, etc. are not in the
+// v1 CREATE schema and would cause HTTP 400 errors. Only these fields are valid:
+// gpuCount, name, templateId|imageName, cloudType, volumeInGb, networkVolumeId,
+// containerDiskInGb, volumeMountPath, env.
+func TestPodCreate_ValidAttributes(t *testing.T) {
 	var body map[string]interface{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)
@@ -422,14 +423,17 @@ func TestPodCreate_DropsMostConfigAttributes(t *testing.T) {
 	m.Name = types.StringValue("p")
 	m.ImageName = types.StringValue("img")
 	m.GpuCount = types.Int64Value(1)
-	// User-set attributes that Create currently ignores:
-	m.GpuTypeId = types.StringValue("NVIDIA GeForce RTX 4090")
-	m.DockerArgs = types.StringValue("--foo")
+	m.CloudType = types.StringValue("SECURE")
+	m.VolumeInGb = types.Float64Value(50)
+	m.NetworkVolumeId = types.StringValue("nv-1")
 	m.ContainerDiskInGb = types.Int64Value(20)
-	m.StartSsh = types.BoolValue(true)
-	m.StartJupyter = types.BoolValue(true)
-	m.MachineId = types.StringValue("m1")
-	m.StopAfter = types.StringValue("1h")
+	m.VolumeMountPath = types.StringValue("/data")
+
+	envList := types.ListValueMust(types.StringType, []attr.Value{
+		types.StringValue("ENV1=value1"),
+		types.StringValue("ENV2=value2"),
+	})
+	m.Env = envList
 
 	resp := &resource.CreateResponse{State: tfsdk.State{Schema: PodResourceSchema(context.Background())}}
 	(&PodResource{}).Create(context.Background(), resource.CreateRequest{Config: podConfig(t, m)}, resp)
@@ -437,14 +441,42 @@ func TestPodCreate_DropsMostConfigAttributes(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
 	}
 
-	// The fields Create does send:
+	// Required fields:
 	if body["imageName"] != "img" || body["gpuCount"] != float64(1) || body["name"] != "p" {
 		t.Errorf("expected imageName/gpuCount/name in body; got %v", body)
 	}
-	// Dropped today — present means Create now forwards them (gap may be fixed):
-	for _, k := range []string{"gpuTypeId", "dockerArgs", "containerDiskInGb", "startSsh", "startJupyter", "machineId", "stopAfter"} {
+
+	// Optional fields that ARE valid for v1 CREATE:
+	if body["cloudType"] != "SECURE" {
+		t.Errorf("cloudType = %v, want SECURE", body["cloudType"])
+	}
+	if body["volumeInGb"] != float64(50) {
+		t.Errorf("volumeInGb = %v, want 50", body["volumeInGb"])
+	}
+	if body["networkVolumeId"] != "nv-1" {
+		t.Errorf("networkVolumeId = %v, want nv-1", body["networkVolumeId"])
+	}
+	if body["containerDiskInGb"] != float64(20) {
+		t.Errorf("containerDiskInGb = %v, want 20", body["containerDiskInGb"])
+	}
+	if body["volumeMountPath"] != "/data" {
+		t.Errorf("volumeMountPath = %v, want /data", body["volumeMountPath"])
+	}
+
+	// env should be sent as object:
+	if envMap, ok := body["env"].(map[string]interface{}); ok {
+		if envMap["ENV1"] != "value1" || envMap["ENV2"] != "value2" {
+			t.Errorf("env = %v, want ENV1=value1,ENV2=value2", envMap)
+		}
+	} else {
+		t.Errorf("env not found or not a map: %v", body["env"])
+	}
+
+	// Fields that are NOT valid for v1 CREATE (would cause HTTP 400):
+	invalidFields := []string{"gpuTypeId", "machineId", "dockerArgs", "startSsh", "startJupyter", "stopAfter", "terminateAfter", "port", "bidPerGpu", "volumeKey", "dockerEntrypoint", "dockerStartCmd", "interruptible", "volumeEncrypted"}
+	for _, k := range invalidFields {
 		if _, ok := body[k]; ok {
-			t.Errorf("%q is now sent — Create no longer drops config attributes (update this test)", k)
+			t.Errorf("%q should NOT be sent to v1 CREATE (causes HTTP 400)", k)
 		}
 	}
 }
@@ -486,6 +518,8 @@ func TestPodRead_MapsCorrectlyNamedFields(t *testing.T) {
 		t.Errorf("machine_id = %q, want m9", out.MachineId.ValueString())
 	}
 }
+
+
 
 func TestPodCreate_ConditionalBodyFields(t *testing.T) {
 	capture := func(t *testing.T, m PodModel) map[string]interface{} {
