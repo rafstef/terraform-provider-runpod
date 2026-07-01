@@ -123,9 +123,24 @@ func (r *NetworkVolumeResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	config.Name = types.StringValue(result["name"].(string))
-	config.Size = types.Int64Value(int64(result["size"].(float64)))
-	config.DataCenterId = types.StringValue(result["dataCenterId"].(string))
+	if val, ok := result["name"].(string); ok {
+		config.Name = types.StringValue(val)
+	} else {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Missing 'name' in network volume response: %v", result))
+		return
+	}
+	if val, ok := result["size"].(float64); ok {
+		config.Size = types.Int64Value(int64(val))
+	} else {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Missing 'size' in network volume response: %v", result))
+		return
+	}
+	if val, ok := result["dataCenterId"].(string); ok {
+		config.DataCenterId = types.StringValue(val)
+	} else {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Missing 'dataCenterId' in network volume response: %v", result))
+		return
+	}
 	if val, ok := result["storageTier"].(string); ok {
 		config.StorageTier = types.StringValue(val)
 	}
@@ -312,7 +327,12 @@ func (r *NetworkVolumeResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	state.Name = types.StringValue(result["name"].(string))
+	if val, ok := result["name"].(string); ok {
+		state.Name = types.StringValue(val)
+	} else {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Missing 'name' in network volume response: %v", result))
+		return
+	}
 	if val, ok := result["storageTier"].(string); ok {
 		state.StorageTier = types.StringValue(val)
 	}

@@ -125,13 +125,7 @@ func TestNetworkVolumeCreate_NonOKStatus(t *testing.T) {
 	}
 }
 
-// Correct behavior: a 200 response missing name/size/dataCenterId should yield a
-// diagnostic, not a crash. Create uses unchecked type assertions
-// (network_volume_resource.go:105-107: result["name"].(string), ["size"].(float64),
-// ["dataCenterId"].(string)), so a partial response currently panics. Skipped
-// until those are ok-checked.
 func TestNetworkVolumeCreate_PartialResponse_ReturnsDiagnostic(t *testing.T) {
-	t.Skip("network_volume Create uses unchecked casts on result[name]/[size]/[dataCenterId] and panics on a partial response; should return a diagnostic — un-skip when fixed")
 	ctx := context.Background()
 	sch := NetworkVolumeResourceSchema(ctx)
 	srv := nvStub(t, 200, `{"id":"nv-1"}`, nil, nil, nil)
