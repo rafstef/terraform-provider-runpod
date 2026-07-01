@@ -474,7 +474,7 @@ func (r *PodResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		return
 	}
 
-	if respHTTP.StatusCode != 200 {
+	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to update pod (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
 	}
