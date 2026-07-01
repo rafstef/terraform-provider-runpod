@@ -62,7 +62,7 @@ func TestMachineCreate_SetsID(t *testing.T) {
 // hostPricePerGpu) because Read does unchecked type assertions on each.
 func TestMachineRead_PopulatesState(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"data":{"machine":{"name":"n","gpuCount":1,"gpuType":"A100","cpuCount":8,"memoryInGb":64,"diskSizeInGb":100,"region":"EU","listed":true,"secureCloud":true,"maintenanceMode":false,"verified":true,"hostPricePerGpu":1.5}}}`))
+		_, _ = w.Write([]byte(`{"data":{"machine":{"name":"n","gpuType":{"id":"A100","displayName":"NVIDIA A100"},"cpuCount":8,"gpuTotal":1,"memoryTotal":64,"diskTotal":100,"location":"EU","listed":true,"secureCloud":true,"maintenanceMode":false,"verified":true,"hostPricePerGpu":1.5}}}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")

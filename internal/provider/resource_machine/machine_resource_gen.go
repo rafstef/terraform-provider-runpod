@@ -103,6 +103,11 @@ func MachineResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Whether machine is verified",
 				MarkdownDescription: "Whether machine is verified",
 			},
+			"runpod_ip": schema.StringAttribute{
+				Computed:            true,
+				Description:         "RunPod IP address",
+				MarkdownDescription: "RunPod IP address",
+			},
 		},
 	}
 }
@@ -123,4 +128,5 @@ type MachineModel struct {
 	Name            types.String  `tfsdk:"name"`
 	SecureCloud     types.Bool    `tfsdk:"secure_cloud"`
 	Verified        types.Bool    `tfsdk:"verified"`
+	RunpodIp        types.String  `tfsdk:"runpod_ip"`
 }
