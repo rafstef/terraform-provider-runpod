@@ -186,10 +186,10 @@ func TestRead_MissingAPIKey(t *testing.T) {
 	}
 }
 
-// TestRead_NotFound404 asserts Read treats a 404 (with a parseable JSON body, so
-// the status check is reached) as a not-found warning rather than an error. The
-// resource's 404 check runs after json.Unmarshal, so the body must be valid JSON.
-func TestRead_NotFound404(t *testing.T) {
+// TestRead_404_RemovesState asserts CE-1654-style fix for container_registry_auth:
+// when a resource is gone (404), Read must call resp.State.RemoveResource so the
+// deleted resource is removed from state.
+func TestRead_404_RemovesState(t *testing.T) {
 	ctx := context.Background()
 	sch := ContainerRegistryAuthResourceSchema(ctx)
 
@@ -219,8 +219,8 @@ func TestRead_NotFound404(t *testing.T) {
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("expected no error for 404 not-found, got: %v", resp.Diagnostics.Errors())
 	}
-	if resp.Diagnostics.WarningsCount() == 0 {
-		t.Fatalf("expected a not-found warning for 404, got none")
+	if !resp.State.Raw.IsNull() {
+		t.Fatalf("state was not removed on 404 - CE-1654 fix should remove resource from state")
 	}
 }
 

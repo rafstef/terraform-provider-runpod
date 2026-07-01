@@ -527,3 +527,34 @@ func TestEndpointRead_MapsWorkersAndEnv(t *testing.T) {
 		t.Errorf("Env = %v, want MY_VAR populated", out.Env)
 	}
 }
+
+// TestEndpointRead_404_RemovesState asserts CE-1654 fix for endpoint:
+// when an endpoint is gone (404), Read must call resp.State.RemoveResource
+// so the deleted endpoint is removed from state and planned for recreation.
+func TestEndpointRead_404_RemovesState(t *testing.T) {
+	ctx := context.Background()
+	m := newBaseModel()
+	m.Id = types.StringValue("endpoint-gone")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"not found"}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	sch := EndpointResourceSchema(ctx)
+	state := tfsdk.State{Schema: sch}
+	if d := state.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build state: %v", d)
+	}
+	resp := &resource.ReadResponse{State: state}
+	(&EndpointResource{}).Read(ctx, resource.ReadRequest{State: state}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("404 should not error: %v", resp.Diagnostics)
+	}
+	if !resp.State.Raw.IsNull() {
+		t.Error("state was not removed on 404 — CE-1654: deleted endpoint should be removed from state")
+	}
+}
