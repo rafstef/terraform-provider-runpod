@@ -19,7 +19,32 @@ func NewContainerRegistryAuthResource() resource.Resource {
 	return &ContainerRegistryAuthResource{}
 }
 
-type ContainerRegistryAuthResource struct{}
+type ContainerRegistryAuthResource struct {
+	client *client.RunPodClient
+}
+
+func (r *ContainerRegistryAuthResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData != nil {
+		r.client = req.ProviderData.(*client.RunPodClient)
+	}
+}
+
+func (r *ContainerRegistryAuthResource) getClient() *client.RunPodClient {
+	if r.client != nil {
+		return r.client
+	}
+	apiKey := os.Getenv("RUNPOD_API_KEY")
+	graphqlEndpoint := os.Getenv("RUNPOD_GRAPHQL_URL")
+	if graphqlEndpoint == "" {
+		graphqlEndpoint = "https://api.runpod.io/graphql"
+	}
+	restBaseURL := os.Getenv("RUNPOD_BASE_URL")
+	if restBaseURL == "" {
+		restBaseURL = "https://rest.runpod.io/v1"
+	}
+	r.client = client.NewRunPodClient(apiKey, graphqlEndpoint, restBaseURL)
+	return r.client
+}
 
 func (r *ContainerRegistryAuthResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "runpod_container_registry_auth"
@@ -37,7 +62,7 @@ func (r *ContainerRegistryAuthResource) Create(ctx context.Context, req resource
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
+	apiKey := r.getClient().APIKey
 	if apiKey == "" {
 		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
 		return
@@ -126,7 +151,7 @@ func (r *ContainerRegistryAuthResource) Read(ctx context.Context, req resource.R
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
+	apiKey := r.getClient().APIKey
 	if apiKey == "" {
 		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
 		return
@@ -195,7 +220,7 @@ func (r *ContainerRegistryAuthResource) Delete(ctx context.Context, req resource
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
+	apiKey := r.getClient().APIKey
 	if apiKey == "" {
 		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
 		return

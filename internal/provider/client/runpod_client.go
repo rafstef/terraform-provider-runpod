@@ -29,20 +29,7 @@ func NewRunPodClient(apiKey, graphqlEndpoint, restBaseURL string) *RunPodClient 
 	}
 }
 
-func NewRunPodClient2(apiKey, endpoint string) *RunPodClient {
-	restBaseURL := endpoint
-	if endpoint == "https://api.runpod.io/graphql" {
-		restBaseURL = "https://rest.runpod.io/v1"
-	}
-	return &RunPodClient{
-		APIKey:          apiKey,
-		GraphQLEndpoint: endpoint,
-		RestBaseURL:     restBaseURL,
-		Client: &http.Client{
-			Timeout: 60 * time.Second,
-		},
-	}
-}
+
 
 func (c *RunPodClient) Query(ctx context.Context, query string, variables map[string]interface{}) (map[string]interface{}, error) {
 	requestBody := map[string]interface{}{
