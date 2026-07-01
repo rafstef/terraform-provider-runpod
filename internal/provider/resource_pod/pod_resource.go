@@ -167,6 +167,13 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
+	if config.StartSsh.IsNull() {
+		config.StartSsh = types.BoolValue(false)
+	}
+	if config.StartJupyter.IsNull() {
+		config.StartJupyter = types.BoolValue(false)
+	}
+
 	// Set the state
 	diags = resp.State.Set(ctx, &config)
 	if diags.HasError() {
