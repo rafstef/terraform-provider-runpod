@@ -181,14 +181,9 @@ func TestPodRead_UsesConfiguredBaseURL(t *testing.T) {
 	}
 }
 
-// TestPodRead_404_DoesNotRemoveState is a characterization test for bug CE-1654.
-// When a pod is gone (404), Read only emits a warning and returns — it never
-// calls resp.State.RemoveResource, so the deleted pod stays in Terraform state
-// (plan stays dirty; it's never recreated).
-//
-// This asserts current behavior: no error, and state NOT removed. When CE-1654 is
-// fixed (RemoveResource on 404), resp.State.Raw becomes null — flip this test.
-func TestPodRead_404_DoesNotRemoveState(t *testing.T) {
+// TestPodRead_404_RemovesState asserts CE-1654 is fixed: when a pod is gone (404),
+// Read must call resp.State.RemoveResource so the deleted pod is removed from state.
+func TestPodRead_404_RemovesState(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"error":"pod not found"}`))
@@ -204,10 +199,10 @@ func TestPodRead_404_DoesNotRemoveState(t *testing.T) {
 	(&PodResource{}).Read(context.Background(), resource.ReadRequest{State: podState(t, m)}, resp)
 
 	if resp.Diagnostics.HasError() {
-		t.Fatalf("404 should be a warning, not an error: %v", resp.Diagnostics)
+		t.Fatalf("404 should not produce an error: %v", resp.Diagnostics)
 	}
-	if resp.State.Raw.IsNull() {
-		t.Error("state was removed on 404 — CE-1654 appears FIXED; flip this test to assert removal")
+	if !resp.State.Raw.IsNull() {
+		t.Error("state was not removed on 404 — CE-1654: deleted pod should be removed from state")
 	}
 }
 
