@@ -12,7 +12,32 @@ func NewPodActionResource() resource.Resource {
 	return &PodActionResource{}
 }
 
-type PodActionResource struct{}
+type PodActionResource struct {
+	client *client.RunPodClient
+}
+
+func (r *PodActionResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData != nil {
+		r.client = req.ProviderData.(*client.RunPodClient)
+	}
+}
+
+func (r *PodActionResource) getClient() *client.RunPodClient {
+	if r.client != nil {
+		return r.client
+	}
+	apiKey := os.Getenv("RUNPOD_API_KEY")
+	endpoint := os.Getenv("RUNPOD_GRAPHQL_URL")
+	if endpoint == "" {
+		endpoint = "https://api.runpod.io/graphql"
+	}
+	baseURL := os.Getenv("RUNPOD_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://rest.runpod.io/v1"
+	}
+	r.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
+	return r.client
+}
 
 func (r *PodActionResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "runpod_pod_action"
@@ -88,9 +113,8 @@ variables := map[string]interface{}{
 			"podId": config.PodId.ValueString(),
 		}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	runpodClient := client.NewRunPodClient(apiKey, client.GetGraphQLEndpoint())
-	result, err := runpodClient.Query(ctx, query, variables)
+	client := r.getClient()
+	result, err := client.Query(ctx, query, variables)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())
 		return

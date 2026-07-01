@@ -12,7 +12,7 @@ import (
 )
 
 func TestNewRunPodClient_SetsTimeout(t *testing.T) {
-	c := NewRunPodClient("k", "http://example")
+	c := NewRunPodClient("k", "http://example", "http://example")
 	if c.Client.Timeout != 60*time.Second {
 		t.Errorf("client timeout = %v, want 60s", c.Client.Timeout)
 	}
@@ -34,7 +34,7 @@ func TestQueryRaw_ReturnsInnerData(t *testing.T) {
 
 // newTestClient returns a client pointed at the given test server URL.
 func newTestClient(url string) *RunPodClient {
-	return NewRunPodClient("test-key", url)
+	return NewRunPodClient("test-key", url, "http://example.com")
 }
 
 // TestQuery_Success_ReturnsInnerData documents that Query unwraps the GraphQL

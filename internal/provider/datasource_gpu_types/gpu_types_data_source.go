@@ -1,18 +1,41 @@
 package datasource_gpu_types
 
 import (
-	"os"
 	"context"
+	"os"
+
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/runpod/terraform-provider-runpod/internal/provider/client"
+
+	client "github.com/runpod/terraform-provider-runpod/internal/provider/client"
 )
 
 func NewGpuTypesDataSource() datasource.DataSource {
 	return &GpuTypesDataSource{}
 }
 
-type GpuTypesDataSource struct{}
+type GpuTypesDataSource struct {
+	client *client.RunPodClient
+}
+
+func (d *GpuTypesDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+	if req.ProviderData != nil {
+		d.client = req.ProviderData.(*client.RunPodClient)
+	}
+}
+
+func (d *GpuTypesDataSource) getClient() *client.RunPodClient {
+	if d.client != nil {
+		return d.client
+	}
+	apiKey := os.Getenv("RUNPOD_API_KEY")
+	graphqlEndpoint := os.Getenv("RUNPOD_GRAPHQL_URL")
+	if graphqlEndpoint == "" {
+		graphqlEndpoint = "https://api.runpod.io/graphql"
+	}
+	d.client = client.NewRunPodClient(apiKey, graphqlEndpoint, "https://rest.runpod.io/v1")
+	return d.client
+}
 
 func (d *GpuTypesDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = "runpod_gpu_types"
@@ -40,9 +63,7 @@ func (d *GpuTypesDataSource) Read(ctx context.Context, req datasource.ReadReques
 
 	variables := map[string]interface{}{}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	clientObj := client.NewRunPodClient(apiKey, client.GetGraphQLEndpoint())
-	result, err := clientObj.Query(ctx, query, variables)
+	result, err := d.getClient().Query(ctx, query, variables)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())
 		return

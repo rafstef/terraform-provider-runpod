@@ -20,7 +20,32 @@ func NewTemplateResource() resource.Resource {
 	return &TemplateResource{}
 }
 
-type TemplateResource struct{}
+type TemplateResource struct {
+	client *client.RunPodClient
+}
+
+func (r *TemplateResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData != nil {
+		r.client = req.ProviderData.(*client.RunPodClient)
+	}
+}
+
+func (r *TemplateResource) getClient() *client.RunPodClient {
+	if r.client != nil {
+		return r.client
+	}
+	apiKey := os.Getenv("RUNPOD_API_KEY")
+	endpoint := os.Getenv("RUNPOD_GRAPHQL_URL")
+	if endpoint == "" {
+		endpoint = "https://api.runpod.io/graphql"
+	}
+	baseURL := os.Getenv("RUNPOD_BASE_URL")
+	if baseURL == "" {
+		baseURL = "https://rest.runpod.io/v1"
+	}
+	r.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
+	return r.client
+}
 
 func (r *TemplateResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "runpod_template"
@@ -38,13 +63,9 @@ func (r *TemplateResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/templates"
+	url := client.RestBaseURL + "/templates"
 
 	body := map[string]interface{}{
 		"name":       config.Name.ValueString(),
@@ -144,7 +165,7 @@ func (r *TemplateResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)
@@ -297,13 +318,9 @@ func (r *TemplateResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/templates/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/templates/" + state.Id.ValueString()
 
 	reqHTTP, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -312,7 +329,7 @@ func (r *TemplateResource) Read(ctx context.Context, req resource.ReadRequest, r
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)
@@ -470,13 +487,9 @@ func (r *TemplateResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/templates/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/templates/" + state.Id.ValueString()
 
 	body := map[string]interface{}{}
 
@@ -581,7 +594,7 @@ func (r *TemplateResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)
@@ -727,13 +740,9 @@ func (r *TemplateResource) Delete(ctx context.Context, req resource.DeleteReques
 		return
 	}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
-		return
-	}
+	client := r.getClient()
 
-	url := client.GetRestBaseURL() + "/templates/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/templates/" + state.Id.ValueString()
 
 	reqHTTP, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
@@ -742,7 +751,7 @@ func (r *TemplateResource) Delete(ctx context.Context, req resource.DeleteReques
 	}
 
 	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
 	httpClient := &http.Client{}
 	respHTTP, err := httpClient.Do(reqHTTP)

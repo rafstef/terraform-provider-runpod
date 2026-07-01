@@ -32,6 +32,8 @@ import (
 	datasource_billing_pod "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_pod"
 	datasource_billing_network_volume "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_network_volume"
 	datasource_billing_endpoint "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_endpoint"
+
+	client "github.com/runpod/terraform-provider-runpod/internal/provider/client"
 )
 
 func main() {
@@ -58,6 +60,12 @@ type runpodProvider struct {
 	apiKey     string
 	baseUrl    string
 	graphqlUrl string
+	client     *client.RunPodClient
+}
+
+type providerConfig struct {
+	ApiKey  types.String `tfsdk:"api_key"`
+	BaseUrl types.String `tfsdk:"base_url"`
 }
 
 func (p *runpodProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -87,19 +95,20 @@ func (p *runpodProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
 	log.Println("Configure() called")
 
-	// Use API key from provider config if provided
-	var config map[string]types.String
-	diags := req.Config.Get(ctx, &config)
-	if !diags.HasError() {
-		if val, ok := config["api_key"]; ok && !val.IsNull() && !val.IsUnknown() {
-			p.apiKey = val.ValueString()
-		}
-		if val, ok := config["base_url"]; ok && !val.IsNull() && !val.IsUnknown() {
-			p.baseUrl = val.ValueString()
-		}
+	var cfg providerConfig
+	diags := req.Config.Get(ctx, &cfg)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	// Fall back to environment variable
+	if !cfg.ApiKey.IsNull() && !cfg.ApiKey.IsUnknown() {
+		p.apiKey = cfg.ApiKey.ValueString()
+	}
+	if !cfg.BaseUrl.IsNull() && !cfg.BaseUrl.IsUnknown() {
+		p.baseUrl = cfg.BaseUrl.ValueString()
+	}
+
 	if p.apiKey == "" {
 		p.apiKey = os.Getenv("RUNPOD_API_KEY")
 	}
@@ -107,7 +116,6 @@ func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		p.baseUrl = os.Getenv("RUNPOD_BASE_URL")
 	}
 
-	// Set defaults if still empty
 	if p.baseUrl == "" {
 		p.baseUrl = "https://rest.runpod.io/v1"
 	}
@@ -121,7 +129,10 @@ func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	log.Println("API key configured")
+	p.client = client.NewRunPodClient(p.apiKey, p.graphqlUrl, p.baseUrl)
+	resp.ResourceData = p.client
+	resp.DataSourceData = p.client
+
 	log.Printf("API base URL: %s\n", p.baseUrl)
 	log.Printf("GraphQL URL: %s\n", p.graphqlUrl)
 }

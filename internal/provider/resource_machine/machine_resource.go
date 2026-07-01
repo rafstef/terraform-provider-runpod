@@ -12,7 +12,32 @@ func NewMachineResource() resource.Resource {
 	return &MachineResource{}
 }
 
-type MachineResource struct{}
+type MachineResource struct {
+	client *client.RunPodClient
+}
+
+func (r *MachineResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData != nil {
+		r.client = req.ProviderData.(*client.RunPodClient)
+	}
+}
+
+func (r *MachineResource) getClient() *client.RunPodClient {
+	if r.client != nil {
+		return r.client
+	}
+	apiKey := os.Getenv("RUNPOD_API_KEY")
+	graphqlEndpoint := os.Getenv("RUNPOD_GRAPHQL_URL")
+	if graphqlEndpoint == "" {
+		graphqlEndpoint = "https://api.runpod.io/graphql"
+	}
+	restBaseURL := os.Getenv("RUNPOD_BASE_URL")
+	if restBaseURL == "" {
+		restBaseURL = "https://rest.runpod.io/v1"
+	}
+	r.client = client.NewRunPodClient(apiKey, graphqlEndpoint, restBaseURL)
+	return r.client
+}
 
 func (r *MachineResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = "runpod_machine"
@@ -66,9 +91,7 @@ variables := map[string]interface{}{
 			},
 		}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	runpodClient := client.NewRunPodClient(apiKey, client.GetGraphQLEndpoint())
-	result, err := runpodClient.Query(ctx, query, variables)
+	result, err := r.getClient().Query(ctx, query, variables)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())
 		return
@@ -140,9 +163,7 @@ variables := map[string]interface{}{
 			"machineId": config.Id.ValueString(),
 		}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	runpodClient := client.NewRunPodClient(apiKey, client.GetGraphQLEndpoint())
-	result, err := runpodClient.Query(ctx, query, variables)
+	result, err := r.getClient().Query(ctx, query, variables)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())
 		return
@@ -290,9 +311,7 @@ variables := map[string]interface{}{
 			},
 		}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	runpodClient := client.NewRunPodClient(apiKey, client.GetGraphQLEndpoint())
-	_, err := runpodClient.Query(ctx, query, variables)
+	_, err := r.getClient().Query(ctx, query, variables)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())
 		return
@@ -326,9 +345,7 @@ variables := map[string]interface{}{
 			"machineId": config.Id.ValueString(),
 		}
 
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	runpodClient := client.NewRunPodClient(apiKey, client.GetGraphQLEndpoint())
-	_, err := runpodClient.Query(ctx, query, variables)
+	_, err := r.getClient().Query(ctx, query, variables)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())
 		return
