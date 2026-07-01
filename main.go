@@ -32,6 +32,8 @@ import (
 	datasource_billing_pod "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_pod"
 	datasource_billing_network_volume "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_network_volume"
 	datasource_billing_endpoint "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_endpoint"
+
+	client "github.com/runpod/terraform-provider-runpod/internal/provider/client"
 )
 
 func main() {
@@ -58,6 +60,7 @@ type runpodProvider struct {
 	apiKey     string
 	baseUrl    string
 	graphqlUrl string
+	client     *client.RunPodClient
 }
 
 type providerConfig struct {
@@ -126,7 +129,10 @@ func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRe
 		return
 	}
 
-	log.Println("API key configured")
+	p.client = client.NewRunPodClient(p.apiKey, p.graphqlUrl)
+	resp.ResourceData = p.client
+	resp.DataSourceData = p.client
+
 	log.Printf("API base URL: %s\n", p.baseUrl)
 	log.Printf("GraphQL URL: %s\n", p.graphqlUrl)
 }
