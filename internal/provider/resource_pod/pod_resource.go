@@ -262,8 +262,18 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		if val, ok := machine["gpuTypeId"].(string); ok && val != "" {
 			state.GpuTypeId = types.StringValue(val)
 		}
-		if _, ok := machine["secureCloud"].(bool); ok {
-			state.CloudType = types.StringValue("SECURE")
+		if v, ok := machine["secureCloud"].(bool); ok {
+			if v {
+				state.CloudType = types.StringValue("SECURE")
+			} else {
+				state.CloudType = types.StringValue("COMMUNITY")
+			}
+		}
+	}
+
+	if result["cloudType"] != nil {
+		if val, ok := result["cloudType"].(string); ok && val != "" {
+			state.CloudType = types.StringValue(val)
 		}
 	}
 
