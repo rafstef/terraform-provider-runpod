@@ -91,52 +91,8 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		body["networkVolumeId"] = config.NetworkVolumeId.ValueString()
 	}
 
-	if !config.GpuTypeId.IsNull() && config.GpuTypeId.ValueString() != "" {
-		body["gpuTypeId"] = config.GpuTypeId.ValueString()
-	}
-
-	if !config.MachineId.IsNull() && config.MachineId.ValueString() != "" {
-		body["machineId"] = config.MachineId.ValueString()
-	}
-
-	if !config.DockerArgs.IsNull() && config.DockerArgs.ValueString() != "" {
-		body["dockerArgs"] = config.DockerArgs.ValueString()
-	}
-
 	if !config.ContainerDiskInGb.IsNull() {
 		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
-	}
-
-	if !config.StartSsh.IsNull() {
-		body["startSsh"] = config.StartSsh.ValueBool()
-	}
-
-	if !config.StartJupyter.IsNull() {
-		body["startJupyter"] = config.StartJupyter.ValueBool()
-	}
-
-	if !config.StopAfter.IsNull() && config.StopAfter.ValueString() != "" {
-		body["stopAfter"] = config.StopAfter.ValueString()
-	}
-
-	if !config.TerminateAfter.IsNull() && config.TerminateAfter.ValueString() != "" {
-		body["terminateAfter"] = config.TerminateAfter.ValueString()
-	}
-
-	if !config.Ports.IsNull() && config.Ports.ValueString() != "" {
-		body["ports"] = config.Ports.ValueString()
-	}
-
-	if !config.Port.IsNull() {
-		body["port"] = int64(config.Port.ValueInt64())
-	}
-
-	if !config.BidPerGpu.IsNull() {
-		body["bidPerGpu"] = config.BidPerGpu.ValueFloat64()
-	}
-
-	if !config.VolumeKey.IsNull() && config.VolumeKey.ValueString() != "" {
-		body["volumeKey"] = config.VolumeKey.ValueString()
 	}
 
 	if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
@@ -156,38 +112,6 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		if len(envMap) > 0 {
 			body["env"] = envMap
 		}
-	}
-
-	if !config.DockerEntrypoint.IsNull() && len(config.DockerEntrypoint.Elements()) > 0 {
-		entrypoint := make([]string, 0)
-		for _, element := range config.DockerEntrypoint.Elements() {
-			if strVal, ok := element.(types.String); ok {
-				entrypoint = append(entrypoint, strVal.ValueString())
-			}
-		}
-		if len(entrypoint) > 0 {
-			body["dockerEntrypoint"] = entrypoint
-		}
-	}
-
-	if !config.DockerStartCmd.IsNull() && len(config.DockerStartCmd.Elements()) > 0 {
-		startCmd := make([]string, 0)
-		for _, element := range config.DockerStartCmd.Elements() {
-			if strVal, ok := element.(types.String); ok {
-				startCmd = append(startCmd, strVal.ValueString())
-			}
-		}
-		if len(startCmd) > 0 {
-			body["dockerStartCmd"] = startCmd
-		}
-	}
-
-	if !config.Interruptible.IsNull() {
-		body["interruptible"] = config.Interruptible.ValueBool()
-	}
-
-	if !config.VolumeEncrypted.IsNull() {
-		body["volumeEncrypted"] = config.VolumeEncrypted.ValueBool()
 	}
 
 	jsonBody, err := json.Marshal(body)
