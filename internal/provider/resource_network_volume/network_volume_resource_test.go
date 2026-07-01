@@ -174,12 +174,10 @@ func TestNetworkVolumeRead_Success(t *testing.T) {
 	}
 }
 
-// Correct behavior: on a 404, Read should remove the resource from state
-// (resp.State.RemoveResource) so Terraform plans to recreate it. Currently Read
-// only AddWarning + returns (network_volume_resource.go:164), leaving stale state
-// — same defect class as CE-1654 (pod Read). Skipped until fixed.
+// TestNetworkVolumeRead_404_RemovesState asserts CE-1654 fix for network_volume:
+// when a volume is gone (404), Read must call resp.State.RemoveResource so the
+// deleted volume is removed from state and planned for recreation.
 func TestNetworkVolumeRead_404_RemovesState(t *testing.T) {
-	t.Skip("network_volume Read AddWarnings on 404 but does not RemoveResource, leaving stale state (CE-1654 class) — un-skip when fixed")
 	ctx := context.Background()
 	m := nvModel()
 	m.Id = types.StringValue("nv-1")
@@ -195,7 +193,7 @@ func TestNetworkVolumeRead_404_RemovesState(t *testing.T) {
 		t.Fatalf("404 should not error: %v", resp.Diagnostics)
 	}
 	if !resp.State.Raw.IsNull() {
-		t.Error("expected state removed on 404")
+		t.Error("state was not removed on 404 — CE-1654: deleted network volume should be removed from state")
 	}
 }
 

@@ -339,6 +339,11 @@ func (r *TemplateResource) Read(ctx context.Context, req resource.ReadRequest, r
 	}
 	defer respHTTP.Body.Close()
 
+	if respHTTP.StatusCode == 404 {
+		resp.State.RemoveResource(ctx)
+		return
+	}
+
 	respBody, err := io.ReadAll(respHTTP.Body)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to read response: %v", err))
@@ -348,11 +353,6 @@ func (r *TemplateResource) Read(ctx context.Context, req resource.ReadRequest, r
 	var result map[string]interface{}
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
-		return
-	}
-
-	if respHTTP.StatusCode == 404 {
-		resp.Diagnostics.AddWarning("Resource Not Found", "Template not found - it may have been deleted outside of Terraform")
 		return
 	}
 

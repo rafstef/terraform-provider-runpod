@@ -501,3 +501,35 @@ func TestTemplateResource_Delete_NotNoContent(t *testing.T) {
 		t.Fatalf("expected error on status 200, got none")
 	}
 }
+
+// TestTemplateRead_404_RemovesState asserts CE-1654 fix for template:
+// when a template is gone (404), Read must call resp.State.RemoveResource
+// so the deleted template is removed from state and planned for recreation.
+func TestTemplateRead_404_RemovesState(t *testing.T) {
+	ctx := context.Background()
+	m := newBaseModel()
+	m.Id = types.StringValue("template-gone")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"not found"}`))
+	}))
+	defer srv.Close()
+
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	sch := TemplateResourceSchema(ctx)
+	state := tfsdk.State{Schema: sch}
+	if d := state.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build state: %v", d)
+	}
+	resp := &resource.ReadResponse{State: state}
+	(&TemplateResource{}).Read(ctx, resource.ReadRequest{State: state}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("404 should not error: %v", resp.Diagnostics)
+	}
+	if !resp.State.Raw.IsNull() {
+		t.Error("state was not removed on 404 — CE-1654: deleted template should be removed from state")
+	}
+}

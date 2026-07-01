@@ -176,8 +176,8 @@ func TestAccPodCreateVariations_riab(t *testing.T) {
 	}
 }
 
-// TestAccPodRead_NotFound_riab exercises CE-1654 against a real 404: Read emits a
-// warning and keeps the resource in state (instead of RemoveResource).
+// TestAccPodRead_NotFound_riab asserts CE-1654 fix: when a pod is gone (404),
+// Read must call resp.State.RemoveResource so the deleted pod is removed from state.
 func TestAccPodRead_NotFound_riab(t *testing.T) {
 	skipUnlessRiab(t)
 	ctx := context.Background()
@@ -188,13 +188,10 @@ func TestAccPodRead_NotFound_riab(t *testing.T) {
 	(&PodResource{}).Read(ctx, resource.ReadRequest{State: podState(t, m)}, rResp)
 
 	if rResp.Diagnostics.HasError() {
-		t.Fatalf("404 should be a warning, not an error: %v", rResp.Diagnostics)
+		t.Fatalf("404 should not error: %v", rResp.Diagnostics)
 	}
-	// DESIRED behavior: a 404 should remove the resource from state so it gets
-	// recreated. FAILS today due to CE-1654: Read only warns and leaves
-	// stale state. Green here == CE-1654 fixed.
 	if !rResp.State.Raw.IsNull() {
-		t.Error("state was NOT removed on 404 — FAILS until CE-1654 is fixed (Read should call resp.State.RemoveResource)")
+		t.Error("state was not removed on 404 — CE-1654: deleted pod should be removed from state")
 	}
 }
 
