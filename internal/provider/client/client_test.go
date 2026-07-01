@@ -107,23 +107,22 @@ func TestQuery_SendsCorrectRequest(t *testing.T) {
 	}
 }
 
-// TestQuery_IgnoresContextCancellation characterizes CE-1659: Query builds its
-// request with http.NewRequest (not NewRequestWithContext), so the ctx is never
-// attached. A pre-cancelled context does NOT abort the call — the request still
-// succeeds. When fixed (context-aware request), a cancelled ctx should error;
-// flip this test then.
-func TestQuery_IgnoresContextCancellation(t *testing.T) {
+// TestQuery_ContextCancellationAbortsRequest verifies that Query now properly
+// propagates context cancellation. A pre-cancelled context should abort the call.
+func TestQuery_ContextCancellationAbortsRequest(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Simulate slow response to give cancellation a chance to trigger
+		time.Sleep(500 * time.Millisecond)
 		_, _ = w.Write([]byte(`{"data":{"ok":true}}`))
 	}))
 	defer srv.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // already cancelled
+	cancel() // already cancelled before the call
 
 	_, err := newTestClient(srv.URL).Query(ctx, "query{}", nil)
-	if err != nil {
-		t.Fatalf("expected the cancelled ctx to be IGNORED, but Query errored: %v — ctx may now be wired; flip this test", err)
+	if err == nil {
+		t.Fatalf("expected cancelled context to abort the request, but Query succeeded")
 	}
 }
 
