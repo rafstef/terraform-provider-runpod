@@ -528,3 +528,43 @@ func TestPodDelete_Non204_Errors(t *testing.T) {
 		t.Fatal("expected an error when delete returns a non-204 status")
 	}
 }
+
+func TestPodCreate_OmittedStartSshStartJupyter_DefaultsToFalse(t *testing.T) {
+	var gotBody map[string]interface{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(b, &gotBody)
+		_, _ = w.Write([]byte(`{"id":"pod-1"}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	m := baseModel()
+	m.Name = types.StringValue("test-pod")
+	m.TemplateId = types.StringValue("tmpl-1")
+	m.GpuCount = types.Int64Value(1)
+
+	resp := &resource.CreateResponse{State: tfsdk.State{Schema: PodResourceSchema(context.Background())}}
+	(&PodResource{}).Create(context.Background(), resource.CreateRequest{Config: podConfig(t, m)}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
+	}
+
+	if _, ok := gotBody["startSsh"]; ok {
+		t.Error("startSsh should not be in request body when omitted")
+	}
+	if _, ok := gotBody["startJupyter"]; ok {
+		t.Error("startJupyter should not be in request body when omitted")
+	}
+
+	var out PodModel
+	resp.State.Get(context.Background(), &out)
+	if out.StartSsh.ValueBool() != false {
+		t.Errorf("startSsh in state = %v, want false", out.StartSsh.ValueBool())
+	}
+	if out.StartJupyter.ValueBool() != false {
+		t.Errorf("startJupyter in state = %v, want false", out.StartJupyter.ValueBool())
+	}
+}
