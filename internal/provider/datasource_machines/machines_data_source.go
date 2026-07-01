@@ -74,7 +74,10 @@ func (d *MachinesDataSource) Read(ctx context.Context, req datasource.ReadReques
 				}
 			}
 		}
-		diags := resp.State.Set(ctx, &models)
+		parent := MachinesDataSourceModel{
+			Machines: models,
+		}
+		diags := resp.State.Set(ctx, &parent)
 		if diags.HasError() {
 			resp.Diagnostics.Append(diags...)
 			return

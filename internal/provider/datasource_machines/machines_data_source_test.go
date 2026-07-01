@@ -4,10 +4,10 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 )
 
@@ -23,7 +23,7 @@ import (
 // State.Set. When the schema/Read shape is fixed (schema becomes a list/nested
 // attribute, or Read sets a single object), State.Set will succeed — flip this
 // to assert the parsed machines list.
-func TestMachinesRead_BlockedBySliceSchemaMismatch(t *testing.T) {
+func TestMachinesRead_PopulatesState(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"data":{"machines":[{"id":"m-123","name":"node-a","location":"US-CA","listed":true,"gpuType":{"id":"g1","displayName":"NVIDIA RTX 4090"},"gpuTotal":8,"secureCloud":true,"dataCenterId":"US-CA-1"}]}}`))
 	}))
@@ -35,12 +35,22 @@ func TestMachinesRead_BlockedBySliceSchemaMismatch(t *testing.T) {
 	resp := &datasource.ReadResponse{State: tfsdk.State{Schema: MachinesDataSourceSchema(ctx)}}
 	(&MachinesDataSource{}).Read(ctx, datasource.ReadRequest{}, resp)
 
-	if !resp.Diagnostics.HasError() {
-		t.Fatal("Read now succeeds — the slice/object schema bug looks fixed; flip this to assert the machines list")
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected Read to succeed, got diags=%v", resp.Diagnostics)
 	}
-	for _, d := range resp.Diagnostics.Errors() {
-		if strings.Contains(d.Detail(), "Failed to") {
-			t.Fatalf("CE-1652 regression: double-unwrap is back: %v", resp.Diagnostics)
-		}
+
+	var state MachinesDataSourceModel
+	diags := resp.State.Get(ctx, &state)
+	if diags.HasError() {
+		t.Fatalf("expected to read state back, got diags=%v", diags)
+	}
+	if len(state.Machines) != 1 {
+		t.Fatalf("expected 1 machine, got %d", len(state.Machines))
+	}
+	if state.Machines[0].Id != types.StringValue("m-123") {
+		t.Errorf("machine ID: want %q, got %v", "m-123", state.Machines[0].Id)
+	}
+	if state.Machines[0].Name != types.StringValue("node-a") {
+		t.Errorf("machine name: want %q, got %v", "node-a", state.Machines[0].Name)
 	}
 }
