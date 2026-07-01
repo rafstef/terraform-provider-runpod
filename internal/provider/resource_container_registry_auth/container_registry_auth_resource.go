@@ -57,7 +57,7 @@ func (r *ContainerRegistryAuthResource) Create(ctx context.Context, req resource
 		return
 	}
 
-	reqHTTP, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	reqHTTP, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
@@ -134,7 +134,7 @@ func (r *ContainerRegistryAuthResource) Read(ctx context.Context, req resource.R
 
 	url := client.GetRestBaseURL() + "/containerregistryauth/" + state.Id.ValueString()
 
-	reqHTTP, err := http.NewRequest("GET", url, nil)
+	reqHTTP, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
@@ -203,7 +203,7 @@ func (r *ContainerRegistryAuthResource) Delete(ctx context.Context, req resource
 
 	url := client.GetRestBaseURL() + "/containerregistryauth/" + state.Id.ValueString()
 
-	reqHTTP, err := http.NewRequest("DELETE", url, nil)
+	reqHTTP, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return

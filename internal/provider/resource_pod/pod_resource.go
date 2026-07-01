@@ -120,7 +120,7 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	reqHTTP, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonBody))
+	reqHTTP, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
@@ -189,7 +189,7 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 
 	url := client.GetRestBaseURL() + "/pods/" + state.Id.ValueString()
 
-	reqHTTP, err := http.NewRequest("GET", url, nil)
+	reqHTTP, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
@@ -417,7 +417,7 @@ func (r *PodResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		return
 	}
 
-	reqHTTP, err := http.NewRequest("PATCH", url, bytes.NewBuffer(jsonBody))
+	reqHTTP, err := http.NewRequestWithContext(ctx, "PATCH", url, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
@@ -476,7 +476,7 @@ func (r *PodResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 
 	url := client.GetRestBaseURL() + "/pods/" + state.Id.ValueString()
 
-	reqHTTP, err := http.NewRequest("DELETE", url, nil)
+	reqHTTP, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
