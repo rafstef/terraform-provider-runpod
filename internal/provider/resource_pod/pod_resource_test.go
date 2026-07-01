@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -401,13 +402,11 @@ func TestPodRead_TopLevelCloudTypeFallback(t *testing.T) {
 	}
 }
 
-// TestPodCreate_DropsMostConfigAttributes characterizes a gap: Create only sends
-// gpuCount/name/template|image/cloudType/volumeInGb. Other input attributes a user
-// sets (gpu_type_id, docker_args, container_disk_in_gb, start_ssh, start_jupyter,
-// machine_id, stop_after, …) are silently dropped — never put in the request body,
-// so the API never receives them. Green now (documents the drop); when Create is
-// fixed to forward these, the absence assertions flip.
-func TestPodCreate_DropsMostConfigAttributes(t *testing.T) {
+// TestPodCreate_ForwardsConfigAttributes verifies that Create forwards all
+// supported input attributes to the v1 API request body. This closes the gap
+// where gpu_type_id, docker_args, container_disk_in_gb, start_ssh, start_jupyter,
+// machine_id, stop_after, and others were silently dropped.
+func TestPodCreate_ForwardsConfigAttributes(t *testing.T) {
 	var body map[string]interface{}
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)
@@ -422,7 +421,7 @@ func TestPodCreate_DropsMostConfigAttributes(t *testing.T) {
 	m.Name = types.StringValue("p")
 	m.ImageName = types.StringValue("img")
 	m.GpuCount = types.Int64Value(1)
-	// User-set attributes that Create currently ignores:
+	// User-set attributes that Create should now forward:
 	m.GpuTypeId = types.StringValue("NVIDIA GeForce RTX 4090")
 	m.DockerArgs = types.StringValue("--foo")
 	m.ContainerDiskInGb = types.Int64Value(20)
@@ -437,15 +436,31 @@ func TestPodCreate_DropsMostConfigAttributes(t *testing.T) {
 		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
 	}
 
-	// The fields Create does send:
+	// The fields Create sends:
 	if body["imageName"] != "img" || body["gpuCount"] != float64(1) || body["name"] != "p" {
 		t.Errorf("expected imageName/gpuCount/name in body; got %v", body)
 	}
-	// Dropped today — present means Create now forwards them (gap may be fixed):
-	for _, k := range []string{"gpuTypeId", "dockerArgs", "containerDiskInGb", "startSsh", "startJupyter", "machineId", "stopAfter"} {
-		if _, ok := body[k]; ok {
-			t.Errorf("%q is now sent — Create no longer drops config attributes (update this test)", k)
-		}
+	// Attributes that Create now forwards:
+	if body["gpuTypeId"] != "NVIDIA GeForce RTX 4090" {
+		t.Errorf("gpuTypeId = %v, want NVIDIA GeForce RTX 4090", body["gpuTypeId"])
+	}
+	if body["dockerArgs"] != "--foo" {
+		t.Errorf("dockerArgs = %v, want --foo", body["dockerArgs"])
+	}
+	if body["containerDiskInGb"] != float64(20) {
+		t.Errorf("containerDiskInGb = %v, want 20", body["containerDiskInGb"])
+	}
+	if body["startSsh"] != true {
+		t.Errorf("startSsh = %v, want true", body["startSsh"])
+	}
+	if body["startJupyter"] != true {
+		t.Errorf("startJupyter = %v, want true", body["startJupyter"])
+	}
+	if body["machineId"] != "m1" {
+		t.Errorf("machineId = %v, want m1", body["machineId"])
+	}
+	if body["stopAfter"] != "1h" {
+		t.Errorf("stopAfter = %v, want 1h", body["stopAfter"])
 	}
 }
 
@@ -484,6 +499,67 @@ func TestPodRead_MapsCorrectlyNamedFields(t *testing.T) {
 	}
 	if out.MachineId.ValueString() != "m9" {
 		t.Errorf("machine_id = %q, want m9", out.MachineId.ValueString())
+	}
+}
+
+func TestPodCreate_ForwardsAdditionalConfigAttributes(t *testing.T) {
+	var body map[string]interface{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(b, &body)
+		_, _ = w.Write([]byte(`{"id":"pod-x"}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	m := baseModel()
+	m.Name = types.StringValue("p")
+	m.ImageName = types.StringValue("img")
+	m.GpuCount = types.Int64Value(1)
+	m.Ports = types.StringValue("8080,8443")
+	m.Port = types.Int64Value(8080)
+	m.BidPerGpu = types.Float64Value(0.5)
+	m.VolumeKey = types.StringValue("mykey")
+	m.VolumeMountPath = types.StringValue("/data")
+	m.TerminateAfter = types.StringValue("2h")
+
+	m.Env = types.ListValueMust(types.StringType, []attr.Value{
+		types.StringValue("ENV1=value1"),
+		types.StringValue("ENV2=value2"),
+	})
+
+	resp := &resource.CreateResponse{State: tfsdk.State{Schema: PodResourceSchema(context.Background())}}
+	(&PodResource{}).Create(context.Background(), resource.CreateRequest{Config: podConfig(t, m)}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
+	}
+
+	if body["ports"] != "8080,8443" {
+		t.Errorf("ports = %v, want 8080,8443", body["ports"])
+	}
+	if body["port"] != float64(8080) {
+		t.Errorf("port = %v, want 8080", body["port"])
+	}
+	if body["bidPerGpu"] != 0.5 {
+		t.Errorf("bidPerGpu = %v, want 0.5", body["bidPerGpu"])
+	}
+	if body["volumeKey"] != "mykey" {
+		t.Errorf("volumeKey = %v, want mykey", body["volumeKey"])
+	}
+	if body["volumeMountPath"] != "/data" {
+		t.Errorf("volumeMountPath = %v, want /data", body["volumeMountPath"])
+	}
+	if body["terminateAfter"] != "2h" {
+		t.Errorf("terminateAfter = %v, want 2h", body["terminateAfter"])
+	}
+
+	if envMap, ok := body["env"].(map[string]interface{}); ok {
+		if envMap["ENV1"] != "value1" || envMap["ENV2"] != "value2" {
+			t.Errorf("env = %v, want ENV1=value1,ENV2=value2", envMap)
+		}
+	} else {
+		t.Errorf("env not found or not a map: %v", body["env"])
 	}
 }
 

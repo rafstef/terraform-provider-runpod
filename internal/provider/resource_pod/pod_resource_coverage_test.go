@@ -94,10 +94,18 @@ func TestPodUpdate_ManyFieldsInBody(t *testing.T) {
 	prior := baseModel()
 	prior.Id = types.StringValue("pod-1")
 	prior.Name = types.StringValue("old")
+	prior.GpuTypeId = types.StringValue("NVIDIA GPU")
+	prior.MachineId = types.StringValue("m-old")
+	prior.ContainerDiskInGb = types.Int64Value(20)
+	prior.VolumeKey = types.StringValue("oldkey")
 
 	desired := baseModel()
 	desired.Id = types.StringValue("pod-1")
 	desired.Name = types.StringValue("new")
+	desired.GpuTypeId = types.StringValue("NVIDIA A100")
+	desired.MachineId = types.StringValue("m-1")
+	desired.ContainerDiskInGb = types.Int64Value(30)
+	desired.VolumeKey = types.StringValue("mykey")
 	desired.GpuCount = types.Int64Value(2)
 	desired.CloudType = types.StringValue("SECURE")
 	desired.DockerArgs = types.StringValue("--foo")
@@ -128,7 +136,7 @@ func TestPodUpdate_ManyFieldsInBody(t *testing.T) {
 		t.Fatalf("Update errored: %v", resp.Diagnostics.Errors())
 	}
 
-	for _, k := range []string{"name", "gpuCount", "cloudType", "dockerArgs", "env", "startSsh", "startJupyter", "stopAfter", "terminateAfter", "volumeMountPath"} {
+	for _, k := range []string{"name", "gpuCount", "cloudType", "dockerArgs", "env", "startSsh", "startJupyter", "stopAfter", "terminateAfter", "volumeMountPath", "gpuTypeId", "machineId", "containerDiskInGb", "volumeKey", "port", "bidPerGpu"} {
 		if _, ok := body[k]; !ok {
 			t.Errorf("PATCH body missing %q; got %v", k, body)
 		}
