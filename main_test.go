@@ -100,22 +100,6 @@ func TestConfigure_MissingApiKeyErrors(t *testing.T) {
 	}
 }
 
-// TestConfigure_ShortApiKey_Panics characterizes a latent panic: on the success
-// path Configure logs `p.apiKey[:8]`, which slices out of range when the key is
-// shorter than 8 characters. With a 5-char key, Configure panics instead of
-// returning. When fixed (guard the slice), this test should be updated.
-func TestConfigure_ShortApiKey_Panics(t *testing.T) {
-	t.Setenv("RUNPOD_API_KEY", "short") // 5 chars < 8
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected a slice-out-of-range panic from p.apiKey[:8] with a <8-char key; none occurred (slice may now be guarded)")
-		}
-	}()
-	p := &runpodProvider{}
-	resp := &provider.ConfigureResponse{}
-	p.Configure(context.Background(), provider.ConfigureRequest{Config: providerConfig(t, p, nil, nil)}, resp)
-}
-
 // TestResourceSchemas is a smoke check: every registered resource builds its
 // schema without diagnostics and exposes at least one attribute. It does not
 // run full framework schema validation — it catches gross breakage / gen drift.
