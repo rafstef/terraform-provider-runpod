@@ -91,6 +91,73 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		body["networkVolumeId"] = config.NetworkVolumeId.ValueString()
 	}
 
+	if !config.GpuTypeId.IsNull() && config.GpuTypeId.ValueString() != "" {
+		body["gpuTypeId"] = config.GpuTypeId.ValueString()
+	}
+
+	if !config.MachineId.IsNull() && config.MachineId.ValueString() != "" {
+		body["machineId"] = config.MachineId.ValueString()
+	}
+
+	if !config.DockerArgs.IsNull() && config.DockerArgs.ValueString() != "" {
+		body["dockerArgs"] = config.DockerArgs.ValueString()
+	}
+
+	if !config.ContainerDiskInGb.IsNull() {
+		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
+	}
+
+	if !config.StartSsh.IsNull() {
+		body["startSsh"] = config.StartSsh.ValueBool()
+	}
+
+	if !config.StartJupyter.IsNull() {
+		body["startJupyter"] = config.StartJupyter.ValueBool()
+	}
+
+	if !config.StopAfter.IsNull() && config.StopAfter.ValueString() != "" {
+		body["stopAfter"] = config.StopAfter.ValueString()
+	}
+
+	if !config.TerminateAfter.IsNull() && config.TerminateAfter.ValueString() != "" {
+		body["terminateAfter"] = config.TerminateAfter.ValueString()
+	}
+
+	if !config.Ports.IsNull() && config.Ports.ValueString() != "" {
+		body["ports"] = config.Ports.ValueString()
+	}
+
+	if !config.Port.IsNull() {
+		body["port"] = int64(config.Port.ValueInt64())
+	}
+
+	if !config.BidPerGpu.IsNull() {
+		body["bidPerGpu"] = config.BidPerGpu.ValueFloat64()
+	}
+
+	if !config.VolumeKey.IsNull() && config.VolumeKey.ValueString() != "" {
+		body["volumeKey"] = config.VolumeKey.ValueString()
+	}
+
+	if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
+		body["volumeMountPath"] = config.VolumeMountPath.ValueString()
+	}
+
+	if !config.Env.IsNull() && len(config.Env.Elements()) > 0 {
+		envMap := make(map[string]interface{})
+		for _, element := range config.Env.Elements() {
+			if elementStr, ok := element.(types.String); ok {
+				parts := strings.SplitN(elementStr.ValueString(), "=", 2)
+				if len(parts) == 2 {
+					envMap[parts[0]] = parts[1]
+				}
+			}
+		}
+		if len(envMap) > 0 {
+			body["env"] = envMap
+		}
+	}
+
 	if !config.DockerEntrypoint.IsNull() && len(config.DockerEntrypoint.Elements()) > 0 {
 		entrypoint := make([]string, 0)
 		for _, element := range config.DockerEntrypoint.Elements() {
