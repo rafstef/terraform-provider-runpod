@@ -16,7 +16,7 @@ import (
 // fixed behavior: no diagnostics error and state is populated from the response.
 func TestUserRead_PopulatesState(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"data":{"user":{"id":"u1","pubKey":"ssh-ed25519 AAAA test@runpod"}}}`))
+		_, _ = w.Write([]byte(`{"data":{"myself":{"id":"u1","pubKey":"ssh-ed25519 AAAA test@runpod"}}}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")

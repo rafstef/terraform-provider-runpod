@@ -26,7 +26,7 @@ import (
 // to assert the parsed data-center list.
 func TestDataCentersRead_BlockedBySliceSchemaMismatch(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"data":{"dataCenter":[{"id":"US-CA-1","name":"California 1","location":"US","globalNetwork":true}]}}`))
+		_, _ = w.Write([]byte(`{"data":{"dataCenters":[{"id":"US-CA-1","name":"California 1","location":"US","globalNetwork":true}]}}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")

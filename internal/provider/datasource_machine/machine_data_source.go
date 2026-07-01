@@ -37,7 +37,10 @@ func (d *MachineDataSource) Read(ctx context.Context, req datasource.ReadRequest
 				name
 				location
 				listed
-				gpuType
+				gpuType {
+					id
+					name
+				}
 				gpuTotal
 				gpuReserved
 				cpuCount
@@ -73,7 +76,7 @@ variables := map[string]interface{}{
 			Name:            types.StringValue(machine["name"].(string)),
 			Location:        types.StringValue(machine["location"].(string)),
 			Listed:          types.BoolValue(machine["listed"].(bool)),
-			GpuTypeId:       types.StringValue(machine["gpuType"].(string)),
+			GpuTypeId:       types.StringValue(machine["gpuType"].(map[string]interface{})["id"].(string)),
 			GpuTotal:        types.Int64Value(int64(machine["gpuTotal"].(float64))),
 			GpuReserved:     types.Int64Value(int64(machine["gpuReserved"].(float64))),
 			CpuCount:        types.Int64Value(int64(machine["cpuCount"].(float64))),

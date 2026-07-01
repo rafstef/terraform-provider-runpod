@@ -25,7 +25,7 @@ func (d *DataCentersDataSource) Schema(ctx context.Context, req datasource.Schem
 func (d *DataCentersDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	query := `
 		query GetDataCenters {
-			dataCenter {
+			dataCenters {
 				id
 				name
 				location
@@ -44,7 +44,7 @@ func (d *DataCentersDataSource) Read(ctx context.Context, req datasource.ReadReq
 		return
 	}
 
-	if dataCenters, ok := result["dataCenter"].([]interface{}); ok {
+	if dataCenters, ok := result["dataCenters"].([]interface{}); ok {
 		models := make([]DataCentersModel, len(dataCenters))
 		for i, dc := range dataCenters {
 			if dcMap, ok := dc.(map[string]interface{}); ok {

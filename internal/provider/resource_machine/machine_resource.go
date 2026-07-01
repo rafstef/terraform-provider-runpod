@@ -32,7 +32,7 @@ func (r *MachineResource) Create(ctx context.Context, req resource.CreateRequest
 
 	query := `
 		mutation CreateMachine($input: CreateMachineInput!) {
-			machineCreate(input: $input) {
+			machineAdd(input: $input) {
 				id
 				name
 				description
@@ -74,15 +74,15 @@ variables := map[string]interface{}{
 		return
 	}
 
-	if machineCreate, ok := result["machineCreate"].(map[string]interface{}); ok {
-		if machineID, ok := machineCreate["id"].(string); ok {
+	if machineAdd, ok := result["machineAdd"].(map[string]interface{}); ok {
+		if machineID, ok := machineAdd["id"].(string); ok {
 			config.Id = types.StringValue(machineID)
 		} else {
 			resp.Diagnostics.AddError("API Error", "Failed to get machine ID from response")
 			return
 		}
 	} else {
-		resp.Diagnostics.AddError("API Error", "machineCreate not in response")
+		resp.Diagnostics.AddError("API Error", "machineAdd not in response")
 		return
 	}
 
@@ -183,7 +183,7 @@ func (r *MachineResource) Update(ctx context.Context, req resource.UpdateRequest
 
 	query := `
 		mutation EditMachine($input: EditMachineInput!) {
-			machineEdit(input: $input) {
+			machineEditName(input: $input) {
 				id
 				name
 				description
