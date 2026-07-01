@@ -526,7 +526,12 @@ func (r *PodResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		return
 	}
 
-	config.Id = types.StringValue(result["id"].(string))
+	if id, ok := result["id"].(string); ok {
+		config.Id = types.StringValue(id)
+	} else {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to get pod ID from update response: %v", result))
+		return
+	}
 
 	diags = resp.State.Set(ctx, &config)
 	if diags.HasError() {
