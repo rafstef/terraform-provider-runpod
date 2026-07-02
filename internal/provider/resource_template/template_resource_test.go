@@ -466,6 +466,52 @@ func TestTemplateResource_Update_RetainsApiComputedFields(t *testing.T) {
 	}
 }
 
+// TestTemplateResource_Update_ExcludesCategory asserts the CORRECT behavior for
+// CE-1686: TemplateResource.Update puts `category` into the PATCH body, but the v1
+// templates PATCH input schema does not accept it — the API returns
+// 400 "Extra input keys ... 'category'". Update must not send `category` (nor other
+// non-updatable keys). Skipped until CE-1686 is fixed; asserts the PATCH body omits
+// `category`.
+func TestTemplateResource_Update_ExcludesCategory(t *testing.T) {
+	t.Skip("CE-1686: template Update sends 'category', which the v1 PATCH input schema rejects (400) — un-skip when fixed")
+	ctx := context.Background()
+	sch := TemplateResourceSchema(ctx)
+
+	var gotBody map[string]interface{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":"tpl-1","name":"updated-name","imageName":"img"}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	stateModel := newBaseModel()
+	stateModel.Id = types.StringValue("tpl-1")
+	priorState := tfsdk.State{Schema: sch}
+	if d := priorState.Set(ctx, &stateModel); d.HasError() {
+		t.Fatalf("build prior state: %v", d)
+	}
+
+	planModel := newBaseModel()
+	planModel.Id = types.StringValue("tpl-1")
+	planModel.Name = types.StringValue("updated-name")
+	planModel.Category = types.StringValue("NVIDIA") // user-set, but not accepted on PATCH
+	cfg := buildConfig(t, ctx, planModel)
+
+	resp := &resource.UpdateResponse{State: tfsdk.State{Schema: sch}}
+	(&TemplateResource{}).Update(ctx, resource.UpdateRequest{Config: cfg, State: priorState}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("Update returned errors: %v", resp.Diagnostics)
+	}
+
+	if _, ok := gotBody["category"]; ok {
+		t.Errorf("PATCH body includes 'category' (%v) — the v1 template PATCH schema rejects it (CE-1686); Update must not send it", gotBody["category"])
+	}
+}
+
 func TestTemplateResource_Delete_Success(t *testing.T) {
 	ctx := context.Background()
 	sch := TemplateResourceSchema(ctx)
