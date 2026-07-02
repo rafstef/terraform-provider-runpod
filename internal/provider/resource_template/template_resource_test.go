@@ -183,6 +183,35 @@ func TestTemplateResource_Create_Success(t *testing.T) {
 	}
 }
 
+// TestTemplateResource_Create_Accepts201 locks in CE-1681: POST /templates
+// returns 201 Created, so Create must treat 201 as success (not only 200).
+func TestTemplateResource_Create_Accepts201(t *testing.T) {
+	ctx := context.Background()
+	sch := TemplateResourceSchema(ctx)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":"tpl-1","name":"my-tpl","imageName":"img"}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	cfg := buildConfig(t, ctx, newBaseModel())
+	resp := &resource.CreateResponse{State: tfsdk.State{Schema: sch}}
+	(&TemplateResource{}).Create(ctx, resource.CreateRequest{Config: cfg}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("Create must accept HTTP 201 (CE-1681): %v", resp.Diagnostics)
+	}
+	var out TemplateModel
+	if d := resp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read state: %v", d)
+	}
+	if out.Id.ValueString() != "tpl-1" {
+		t.Errorf("id = %q, want tpl-1 (Create must set id on a 201 response)", out.Id.ValueString())
+	}
+}
+
 func TestTemplateResource_Create_NoAPIKey(t *testing.T) {
 	ctx := context.Background()
 	sch := TemplateResourceSchema(ctx)

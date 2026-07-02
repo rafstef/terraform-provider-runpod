@@ -140,6 +140,40 @@ func TestEndpointCreate_Success(t *testing.T) {
 	}
 }
 
+// TestEndpointCreate_Accepts201 locks in CE-1681: POST /endpoints returns 201
+// Created, so Create must treat 201 as success (not only 200).
+func TestEndpointCreate_Accepts201(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	m := newBaseModel()
+	m.TemplateId = types.StringValue("tmpl-123")
+	m.Name = types.StringValue("my-ep")
+	st := tfsdk.State{Schema: sch}
+	if d := st.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build config: %v", d)
+	}
+	cfg := tfsdk.Config{Schema: sch, Raw: st.Raw}
+
+	srv := stubServer(t, 201, `{"id":"ep-1","templateId":"tmpl-123","name":"my-ep","version":1}`, nil, nil, nil)
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	cresp := &resource.CreateResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Create(ctx, resource.CreateRequest{Config: cfg}, cresp)
+	if cresp.Diagnostics.HasError() {
+		t.Fatalf("Create must accept HTTP 201 (CE-1681): %v", cresp.Diagnostics.Errors())
+	}
+	var out EndpointModel
+	if d := cresp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read state: %v", d)
+	}
+	if out.Id.ValueString() != "ep-1" {
+		t.Errorf("id = %q, want ep-1 (Create must set id on a 201 response)", out.Id.ValueString())
+	}
+}
+
 // TestEndpointCreate_PartialResponse_NoPanic guards the fix that made Create
 // ok-check its response fields (previously result["templateId"]/["name"] were
 // unchecked .(string) casts that panicked on a partial response). A response
@@ -483,6 +517,72 @@ func TestEndpointUpdate_Success(t *testing.T) {
 	}
 	if body["workersMin"] != float64(5) {
 		t.Errorf("PATCH body workersMin = %v, want 5", body["workersMin"])
+	}
+}
+
+// TestEndpointUpdate_PreservesComputedState asserts the CORRECT behavior for the
+// CE-1688 bug (GitHub #34): EndpointResource.Update builds the merged state from
+// prior state + PATCH response, then overwrites it with resp.State.Set(ctx, &config),
+// clobbering computed values config leaves null (vcpu_count, compute_type). Through
+// the real plugin protocol this surfaces as "Provider produced inconsistent result
+// after apply". Skipped until CE-1688 is fixed (drop the trailing State.Set(&config)).
+func TestEndpointUpdate_PreservesComputedState(t *testing.T) {
+	t.Skip("CE-1688: endpoint Update clobbers computed state (config-overwrites-computed-state / GitHub #34) — un-skip when fixed")
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	// Prior state carries concrete computed values the API resolved earlier.
+	prior := newBaseModel()
+	prior.Id = types.StringValue("ep-1")
+	prior.Name = types.StringValue("ep-1")
+	prior.WorkersMin = types.Int64Value(1)
+	prior.VcpuCount = types.Int64Value(2)
+	prior.ComputeType = types.StringValue("cpu")
+
+	// Config leaves the computed fields null (the reporter's ignore_changes case)
+	// and changes only an unrelated mutable field (workers_min).
+	desired := newBaseModel()
+	desired.Id = types.StringValue("ep-1")
+	desired.Name = types.StringValue("ep-1")
+	desired.WorkersMin = types.Int64Value(5) // changed
+	// VcpuCount / ComputeType intentionally left Null.
+
+	priorSt := tfsdk.State{Schema: sch}
+	if d := priorSt.Set(ctx, &prior); d.HasError() {
+		t.Fatalf("build prior state: %v", d)
+	}
+	desiredSt := tfsdk.State{Schema: sch}
+	if d := desiredSt.Set(ctx, &desired); d.HasError() {
+		t.Fatalf("build desired: %v", d)
+	}
+
+	// PATCH response omits vcpuCount/computeType, so the merged `state` keeps the
+	// prior concrete values — isolating the overwrite as the sole cause of the null.
+	srv := stubServer(t, 200, `{"id":"ep-1","name":"ep-1","workersMin":5}`, nil, nil, nil)
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	uresp := &resource.UpdateResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Update(ctx, resource.UpdateRequest{
+		Config: tfsdk.Config{Schema: sch, Raw: desiredSt.Raw},
+		State:  priorSt,
+	}, uresp)
+	if uresp.Diagnostics.HasError() {
+		t.Fatalf("Update errored: %v", uresp.Diagnostics.Errors())
+	}
+
+	var out EndpointModel
+	if d := uresp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read result state: %v", d)
+	}
+
+	// Correct behavior (post-fix): the merged computed values survive the update.
+	if out.VcpuCount.ValueInt64() != 2 {
+		t.Errorf("vcpu_count = %v, want 2 preserved (CE-1688: Update must not clobber computed state)", out.VcpuCount)
+	}
+	if out.ComputeType.ValueString() != "cpu" {
+		t.Errorf("compute_type = %q, want \"cpu\" preserved (CE-1688)", out.ComputeType.ValueString())
 	}
 }
 

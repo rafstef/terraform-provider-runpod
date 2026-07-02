@@ -100,6 +100,36 @@ func TestNetworkVolumeCreate_Success(t *testing.T) {
 	}
 }
 
+// TestNetworkVolumeCreate_Accepts201 locks in CE-1681: the v1 API returns 201
+// Created for POST /networkvolumes, so Create must treat 201 as success (not only
+// 200). Before #44 this failed on a successful create and orphaned the volume.
+func TestNetworkVolumeCreate_Accepts201(t *testing.T) {
+	ctx := context.Background()
+	sch := NetworkVolumeResourceSchema(ctx)
+	m := nvModel()
+	m.Name = types.StringValue("vol-a")
+	m.Size = types.Int64Value(50)
+	m.DataCenterId = types.StringValue("US-CA-1")
+
+	srv := nvStub(t, 201, `{"id":"nv-1","name":"vol-a","size":50,"dataCenterId":"US-CA-1","storageTier":"standard"}`, nil, nil, nil)
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	resp := &resource.CreateResponse{State: tfsdk.State{Schema: sch}}
+	(&NetworkVolumeResource{}).Create(ctx, resource.CreateRequest{Config: nvConfig(t, m)}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("Create must accept HTTP 201 (CE-1681): %v", resp.Diagnostics.Errors())
+	}
+	var out NetworkVolumeModel
+	if d := resp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read state: %v", d)
+	}
+	if out.Id.ValueString() != "nv-1" {
+		t.Errorf("id = %q, want nv-1 (Create must set id on a 201 response)", out.Id.ValueString())
+	}
+}
+
 func TestNetworkVolumeCreate_MissingAPIKey(t *testing.T) {
 	ctx := context.Background()
 	sch := NetworkVolumeResourceSchema(ctx)
@@ -220,6 +250,99 @@ func TestNetworkVolumeUpdate_Success(t *testing.T) {
 	}
 	if method != "PATCH" || path != "/networkvolumes/nv-1" {
 		t.Errorf("expected PATCH /networkvolumes/nv-1, got %s %s", method, path)
+	}
+}
+
+// TestNetworkVolumeUpdate_PreservesComputedState asserts the CORRECT behavior for a
+// second instance of the CE-1688 clobber (GitHub #34). Like EndpointResource.Update,
+// NetworkVolumeResource.Update writes the merged state then overwrites it with
+// resp.State.Set(ctx, &config), replacing values config leaves null:
+//   - id (Computed — never present in config on update) -> clobbered to null
+//   - storage_tier (Optional — API-populated but user-omitted) -> clobbered to null
+// Through the real plugin protocol, a null computed id surfaces as "Provider
+// produced inconsistent result after apply". Skipped until CE-1688 is fixed (drop
+// the trailing State.Set(&config)).
+func TestNetworkVolumeUpdate_PreservesComputedState(t *testing.T) {
+	t.Skip("CE-1688: network_volume Update clobbers computed state (config-overwrites-computed-state / GitHub #34) — un-skip when fixed")
+	ctx := context.Background()
+	sch := NetworkVolumeResourceSchema(ctx)
+
+	// Prior state holds the resolved id + storage tier from create.
+	prior := nvModel()
+	prior.Id = types.StringValue("nv-1")
+	prior.Name = types.StringValue("old-name")
+	prior.Size = types.Int64Value(50)
+	prior.DataCenterId = types.StringValue("US-CA-1")
+	prior.StorageTier = types.StringValue("standard")
+
+	// Config as real Terraform supplies it on update: id is Computed (null in
+	// config) and storage_tier is left unset. Only name changes.
+	desired := nvModel()
+	desired.Name = types.StringValue("new-name")
+	desired.Size = types.Int64Value(50)
+	desired.DataCenterId = types.StringValue("US-CA-1")
+	// Id and StorageTier intentionally left Null (nvModel defaults).
+
+	// PATCH response returns the full resolved body (id + storageTier present).
+	srv := nvStub(t, 200, `{"id":"nv-1","name":"new-name","size":50,"dataCenterId":"US-CA-1","storageTier":"standard"}`, nil, nil, nil)
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	resp := &resource.UpdateResponse{State: tfsdk.State{Schema: sch}}
+	(&NetworkVolumeResource{}).Update(ctx, resource.UpdateRequest{
+		Config: nvConfig(t, desired),
+		State:  nvState(t, prior),
+	}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("Update errored: %v", resp.Diagnostics.Errors())
+	}
+
+	var out NetworkVolumeModel
+	if d := resp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read result state: %v", d)
+	}
+
+	// Correct behavior (post-fix): the merged computed values survive the update.
+	if out.Id.ValueString() != "nv-1" {
+		t.Errorf("id = %q, want \"nv-1\" preserved (CE-1688: Update must not clobber computed state)", out.Id.ValueString())
+	}
+	if out.StorageTier.ValueString() != "standard" {
+		t.Errorf("storage_tier = %q, want \"standard\" preserved (CE-1688)", out.StorageTier.ValueString())
+	}
+}
+
+// TestNetworkVolumeUpdate_PanicsOnPartialResponse pins the CE-1677 Update half:
+// TestNetworkVolumeUpdate_MissingNameReturnsDiagnostic verifies the CE-1677 fix
+// (#48 merged): a 200 PATCH response that omits "name" must yield a clean
+// diagnostic, not a panic (network_volume Update previously did an unchecked
+// `state.Name = result["name"].(string)`).
+func TestNetworkVolumeUpdate_MissingNameReturnsDiagnostic(t *testing.T) {
+	ctx := context.Background()
+	sch := NetworkVolumeResourceSchema(ctx)
+
+	prior := nvModel()
+	prior.Id = types.StringValue("nv-1")
+	prior.Name = types.StringValue("old-name")
+
+	desired := nvModel()
+	desired.Id = types.StringValue("nv-1")
+	desired.Name = types.StringValue("new-name") // a change, so Update PATCHes
+
+	// 200 OK (passes the status guard) but the body omits "name".
+	srv := nvStub(t, 200, `{"id":"nv-1"}`, nil, nil, nil)
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	resp := &resource.UpdateResponse{State: tfsdk.State{Schema: sch}}
+	(&NetworkVolumeResource{}).Update(ctx, resource.UpdateRequest{
+		Config: nvConfig(t, desired),
+		State:  nvState(t, prior),
+	}, resp)
+
+	if !resp.Diagnostics.HasError() {
+		t.Error("expected a diagnostic when the update response omits \"name\" (CE-1677); got none")
 	}
 }
 
