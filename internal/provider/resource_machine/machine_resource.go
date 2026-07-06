@@ -77,15 +77,7 @@ func (r *MachineResource) Create(ctx context.Context, req resource.CreateRequest
 
 	variables := map[string]interface{}{
 			"input": map[string]interface{}{
-				"name":         config.Name.ValueString(),
-				"gpuTypeId":    config.GpuTypeId.ValueString(),
-				"cpuCount":     config.CpuCount.ValueInt64(),
-				"gpuCount":     config.GpuCount.ValueInt64(),
-				"memoryInGb":   config.MemoryInGb.ValueInt64(),
-				"diskInGb":     config.DiskInGb.ValueInt64(),
-				"location":     config.Location.ValueString(),
-				"secureCloud":  config.SecureCloud.ValueBool(),
-				"listed":       config.Listed.ValueBool(),
+				"name": config.Name.ValueString(),
 			},
 		}
 
