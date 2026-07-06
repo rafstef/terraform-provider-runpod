@@ -324,18 +324,6 @@ func TestPodUpdate_AppliesChanges(t *testing.T) {
 	}
 }
 
-// TestPodUpdate_PanicsOnResponseWithoutID pins a panic gap in the MVP pod resource.
-// PodResource.Update does an UNCHECKED type assertion on the PATCH response id
-// (pod_resource.go:464): `config.Id = types.StringValue(result["id"].(string))`.
-// Pod *Create* (line 163) uses the safe `if id, ok := ...; ok { } else { error }`
-// form, but Update does not. The assertion runs after the `!= 200` guard, so a
-// 200 PATCH response that omits `id` (or returns it non-string) panics the provider
-// instead of producing a diagnostic. Not covered by CE-1677 (network_volume) or
-// CE-1682 (data sources + machine Read).
-//
-// Documents the CURRENT (buggy) behavior to keep the unit lane green: asserts that
-// Update panics. When the cast is made safe (checked, returning a diagnostic), it
-// will no longer panic and this test will fail — flip it to assert a diagnostic then.
 // TestPodUpdate_MissingIDReturnsDiagnostic verifies the CE-1684 fix (#48 merged):
 // a 200 PATCH response without "id" must yield a clean diagnostic, not a panic
 // (previously `config.Id = result["id"].(string)` was an unchecked assertion).

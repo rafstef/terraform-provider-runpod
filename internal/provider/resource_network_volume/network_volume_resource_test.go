@@ -262,6 +262,11 @@ func TestNetworkVolumeUpdate_Success(t *testing.T) {
 // Through the real plugin protocol, a null computed id surfaces as "Provider
 // produced inconsistent result after apply". Skipped until CE-1688 is fixed (drop
 // the trailing State.Set(&config)).
+// Note: this test's preservation assertion depends on TWO behaviors — dropping the
+// trailing State.Set(&config) AND the merge continuing to seed `state` from prior
+// state. If a future change drops State.Set but also stops seeding from prior state,
+// the un-skipped test would still fail (for the second reason), so treat a failure as
+// "check both" rather than assuming the overwrite is the only cause.
 func TestNetworkVolumeUpdate_PreservesComputedState(t *testing.T) {
 	t.Skip("CE-1688: network_volume Update clobbers computed state (config-overwrites-computed-state / GitHub #34) — un-skip when fixed")
 	ctx := context.Background()
