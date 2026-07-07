@@ -102,6 +102,9 @@ func TestMachineRead_MapsAllFields(t *testing.T) {
 	if got.DiskInGb.ValueInt64() != 2000 {
 		t.Errorf("DiskInGb = %d, want 2000", got.DiskInGb.ValueInt64())
 	}
+	if got.Location.ValueString() != "US-CA" {
+		t.Errorf("Location = %q, want US-CA", got.Location.ValueString())
+	}
 	if !got.Listed.ValueBool() {
 		t.Error("Listed = false, want true")
 	}
