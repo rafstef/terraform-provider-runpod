@@ -49,6 +49,7 @@ func (c *RunPodClient) Query(ctx context.Context, query string, variables map[st
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.APIKey))
+	req.Header.Set("User-Agent", "Terraform/RunPodProvider")
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
@@ -111,6 +112,7 @@ func (c *RunPodClient) RestQuery(ctx context.Context, method, path string, param
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.APIKey))
+	req.Header.Set("User-Agent", "Terraform/RunPodProvider")
 
 	resp, err := c.Client.Do(req)
 	if err != nil {
