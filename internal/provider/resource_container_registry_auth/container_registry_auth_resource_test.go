@@ -84,6 +84,45 @@ func TestContainerRegistryAuthResource_Create(t *testing.T) {
 	}
 }
 
+// TestContainerRegistryAuthResource_Create_Accepts201 locks in CE-1681: POST
+// /containerregistryauth returns 201 Created, so Create must treat 201 as success.
+func TestContainerRegistryAuthResource_Create_Accepts201(t *testing.T) {
+	ctx := context.Background()
+	sch := ContainerRegistryAuthResourceSchema(ctx)
+	m := ContainerRegistryAuthModel{
+		Id:       types.StringNull(),
+		Name:     types.StringValue("my-registry"),
+		Password: types.StringValue("s3cret"),
+		Username: types.StringValue("alice"),
+	}
+	st := tfsdk.State{Schema: sch}
+	if d := st.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build config: %v", d)
+	}
+	cfg := tfsdk.Config{Schema: sch, Raw: st.Raw}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":"cra-1","name":"my-registry","username":"alice"}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	resp := &resource.CreateResponse{State: tfsdk.State{Schema: sch}}
+	(&ContainerRegistryAuthResource{}).Create(ctx, resource.CreateRequest{Config: cfg}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("Create must accept HTTP 201 (CE-1681): %v", resp.Diagnostics.Errors())
+	}
+	var out ContainerRegistryAuthModel
+	if d := resp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read state: %v", d)
+	}
+	if out.Id.ValueString() != "cra-1" {
+		t.Errorf("id = %q, want cra-1 (Create must set id on a 201 response)", out.Id.ValueString())
+	}
+}
+
 // TestContainerRegistryAuthResource_Create_PartialResponse_ReturnsDiagnostic
 // asserts the CORRECT behavior: when the API returns a 200 body containing
 // "id" but omitting "name"/"username", Create should return a diagnostics

@@ -183,6 +183,35 @@ func TestTemplateResource_Create_Success(t *testing.T) {
 	}
 }
 
+// TestTemplateResource_Create_Accepts201 locks in CE-1681: POST /templates
+// returns 201 Created, so Create must treat 201 as success (not only 200).
+func TestTemplateResource_Create_Accepts201(t *testing.T) {
+	ctx := context.Background()
+	sch := TemplateResourceSchema(ctx)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":"tpl-1","name":"my-tpl","imageName":"img"}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	cfg := buildConfig(t, ctx, newBaseModel())
+	resp := &resource.CreateResponse{State: tfsdk.State{Schema: sch}}
+	(&TemplateResource{}).Create(ctx, resource.CreateRequest{Config: cfg}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("Create must accept HTTP 201 (CE-1681): %v", resp.Diagnostics)
+	}
+	var out TemplateModel
+	if d := resp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read state: %v", d)
+	}
+	if out.Id.ValueString() != "tpl-1" {
+		t.Errorf("id = %q, want tpl-1 (Create must set id on a 201 response)", out.Id.ValueString())
+	}
+}
+
 func TestTemplateResource_Create_NoAPIKey(t *testing.T) {
 	ctx := context.Background()
 	sch := TemplateResourceSchema(ctx)
@@ -434,6 +463,52 @@ func TestTemplateResource_Update_RetainsApiComputedFields(t *testing.T) {
 	// must survive into the final state.
 	if finalState.Earned.ValueFloat64() != 42.5 {
 		t.Errorf("final state Earned = %v, want 42.5 (API-computed field must survive)", finalState.Earned.ValueFloat64())
+	}
+}
+
+// TestTemplateResource_Update_ExcludesCategory asserts the CORRECT behavior for
+// CE-1686: TemplateResource.Update puts `category` into the PATCH body, but the v1
+// templates PATCH input schema does not accept it — the API returns
+// 400 "Extra input keys ... 'category'". Update must not send `category` (nor other
+// non-updatable keys). Skipped until CE-1686 is fixed; asserts the PATCH body omits
+// `category`.
+func TestTemplateResource_Update_ExcludesCategory(t *testing.T) {
+	t.Skip("CE-1686: template Update sends 'category', which the v1 PATCH input schema rejects (400) — un-skip when fixed")
+	ctx := context.Background()
+	sch := TemplateResourceSchema(ctx)
+
+	var gotBody map[string]interface{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		raw, _ := io.ReadAll(r.Body)
+		_ = json.Unmarshal(raw, &gotBody)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"id":"tpl-1","name":"updated-name","imageName":"img"}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	stateModel := newBaseModel()
+	stateModel.Id = types.StringValue("tpl-1")
+	priorState := tfsdk.State{Schema: sch}
+	if d := priorState.Set(ctx, &stateModel); d.HasError() {
+		t.Fatalf("build prior state: %v", d)
+	}
+
+	planModel := newBaseModel()
+	planModel.Id = types.StringValue("tpl-1")
+	planModel.Name = types.StringValue("updated-name")
+	planModel.Category = types.StringValue("NVIDIA") // user-set, but not accepted on PATCH
+	cfg := buildConfig(t, ctx, planModel)
+
+	resp := &resource.UpdateResponse{State: tfsdk.State{Schema: sch}}
+	(&TemplateResource{}).Update(ctx, resource.UpdateRequest{Config: cfg, State: priorState}, resp)
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("Update returned errors: %v", resp.Diagnostics)
+	}
+
+	if _, ok := gotBody["category"]; ok {
+		t.Errorf("PATCH body includes 'category' (%v) — the v1 template PATCH schema rejects it (CE-1686); Update must not send it", gotBody["category"])
 	}
 }
 

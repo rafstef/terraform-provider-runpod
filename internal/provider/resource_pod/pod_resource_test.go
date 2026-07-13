@@ -324,6 +324,38 @@ func TestPodUpdate_AppliesChanges(t *testing.T) {
 	}
 }
 
+// TestPodUpdate_MissingIDReturnsDiagnostic verifies the CE-1684 fix (#48 merged):
+// a 200 PATCH response without "id" must yield a clean diagnostic, not a panic
+// (previously `config.Id = result["id"].(string)` was an unchecked assertion).
+func TestPodUpdate_MissingIDReturnsDiagnostic(t *testing.T) {
+	// 200 OK (passes the != 200 guard) but no "id" in the body.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"message":"ok but no id"}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	prior := baseModel()
+	prior.Id = types.StringValue("pod-1")
+	prior.Name = types.StringValue("orig-name")
+
+	desired := baseModel()
+	desired.Id = types.StringValue("pod-1")
+	desired.Name = types.StringValue("changed-name") // a diff, so Update PATCHes and reaches the id extraction
+
+	sch := PodResourceSchema(context.Background())
+	resp := &resource.UpdateResponse{State: tfsdk.State{Schema: sch}}
+	(&PodResource{}).Update(context.Background(), resource.UpdateRequest{
+		Config: podConfig(t, desired),
+		State:  podState(t, prior),
+	}, resp)
+
+	if !resp.Diagnostics.HasError() {
+		t.Error("expected a diagnostic when the update response has no id (CE-1684); got none")
+	}
+}
+
 // TestPodRead_FieldMapping is a unit characterization of CE-1658 using
 // a realistic v1 API response: the API returns desiredStatus/createdAt and nests
 // gpuType/secureCloud under "machine", but Read maps top-level
