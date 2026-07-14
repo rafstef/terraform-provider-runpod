@@ -19,6 +19,7 @@ import (
 	resource_endpoint "github.com/runpod/terraform-provider-runpod/internal/provider/resource_endpoint"
 	resource_template "github.com/runpod/terraform-provider-runpod/internal/provider/resource_template"
 	resource_container_registry_auth "github.com/runpod/terraform-provider-runpod/internal/provider/resource_container_registry_auth"
+	resource_ecr_delegation "github.com/runpod/terraform-provider-runpod/internal/provider/resource_ecr_delegation"
 
 	datasource_pod "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_pod"
 	datasource_machine "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_machine"
@@ -28,6 +29,7 @@ import (
 	datasource_user "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_user"
 	datasource_template "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_template"
 	datasource_container_registry_auth "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_container_registry_auth"
+	datasource_ecr_delegations "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_ecr_delegations"
 
 	datasource_billing_pod "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_pod"
 	datasource_billing_network_volume "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_network_volume"
@@ -86,7 +88,7 @@ func (p *runpodProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 			"base_url": schema.StringAttribute{
 				Optional:            true,
 				Description:         "RunPod API base URL",
-				MarkdownDescription: "RunPod API base URL. Can also be set via the `RUNPOD_BASE_URL` environment variable. Defaults to `https://rest.runpod.io/v1`.",
+				MarkdownDescription: "RunPod API base URL. Can also be set via the `RUNPOD_BASE_URL` environment variable. Defaults to `https://api.runpod.io/v2`.",
 			},
 		},
 	}
@@ -148,6 +150,7 @@ func (p *runpodProvider) DataSources(ctx context.Context) []func() datasource.Da
 		datasource_user.NewUserDataSource,
 		datasource_template.NewTemplateDataSource,
 		datasource_container_registry_auth.NewContainerRegistryAuthDataSource,
+		datasource_ecr_delegations.NewEcrDelegationsDataSource,
 		datasource_billing_pod.NewBillingPodDataSource,
 		datasource_billing_network_volume.NewBillingNetworkVolumeDataSource,
 		datasource_billing_endpoint.NewBillingEndpointDataSource,
@@ -164,5 +167,6 @@ func (p *runpodProvider) Resources(ctx context.Context) []func() resource.Resour
 		resource_endpoint.NewEndpointResource,
 		resource_template.NewTemplateResource,
 		resource_container_registry_auth.NewContainerRegistryAuthResource,
+		resource_ecr_delegation.NewEcrDelegationResource,
 	}
 }

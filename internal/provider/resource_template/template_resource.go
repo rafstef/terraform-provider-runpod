@@ -41,7 +41,7 @@ func (r *TemplateResource) getClient() *client.RunPodClient {
 	}
 	baseURL := os.Getenv("RUNPOD_BASE_URL")
 	if baseURL == "" {
-		baseURL = "https://rest.runpod.io/v1"
+		baseURL = "https://api.runpod.io/v2"
 	}
 	r.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
 	return r.client

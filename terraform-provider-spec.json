@@ -1310,15 +1310,86 @@
               "description": "Whether it's an official RunPod template"
             }
           },
-          {
-            "name": "runtime_in_min",
-            "int64": {
-              "computed_optional_required": "computed",
-              "description": "Runtime in minutes"
-            }
-          }
-        ]
-      }
-    }
-  ]
-}
+           {
+             "name": "runtime_in_min",
+             "int64": {
+               "computed_optional_required": "computed",
+               "description": "Runtime in minutes"
+             }
+           }
+         ]
+       }
+     },
+     {
+       "name": "ecr_delegation",
+       "description": "Manage AWS ECR repository delegation",
+       "schema": {
+         "attributes": [
+           {
+             "name": "id",
+             "string": {
+               "computed_optional_required": "computed",
+               "description": "ECR delegation ID"
+             }
+           },
+           {
+             "name": "name",
+             "string": {
+               "computed_optional_required": "computed_optional",
+               "description": "Optional name for the delegation"
+             }
+           },
+           {
+             "name": "resource",
+             "string": {
+               "computed_optional_required": "required",
+               "description": "ECR resource ARN (e.g., arn:aws:ecr:us-east-2:123456789:repository/myapp)"
+             }
+           },
+           {
+             "name": "aws_user",
+             "string": {
+               "computed_optional_required": "computed",
+               "description": "AWS user/role being delegated"
+             }
+           },
+           {
+             "name": "repository",
+             "string": {
+               "computed_optional_required": "computed",
+               "description": "ECR repository name"
+             }
+           },
+           {
+             "name": "tag",
+             "string": {
+               "computed_optional_required": "computed",
+               "description": "ECR image tag"
+             }
+           },
+           {
+             "name": "aws_region",
+             "string": {
+               "computed_optional_required": "computed",
+               "description": "AWS region"
+             }
+           },
+           {
+             "name": "docker_registry_uri",
+             "string": {
+               "computed_optional_required": "computed",
+               "description": "Formatted ECR registry URI for Docker login"
+             }
+           },
+           {
+             "name": "created_at",
+             "string": {
+               "computed_optional_required": "computed",
+               "description": "When the delegation was created"
+             }
+           }
+         ]
+       }
+     }
+   ]
+ }
