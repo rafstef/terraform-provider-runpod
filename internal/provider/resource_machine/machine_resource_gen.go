@@ -14,43 +14,43 @@ import (
 func MachineResourceSchema(ctx context.Context) schema.Schema {
 	return schema.Schema{
 		Attributes: map[string]schema.Attribute{
-		"bid_price_per_gpu": schema.Float64Attribute{
-			Optional:            true,
-			Computed:            true,
-			Description:         "Bid price per GPU",
-			MarkdownDescription: "Bid price per GPU",
-		},
-		"cpu_count": schema.Int64Attribute{
-			Optional:            true,
-			Computed:            true,
-			Description:         "Number of CPUs",
-			MarkdownDescription: "Number of CPUs",
-		},
-		"data_center_id": schema.StringAttribute{
-			Optional:            true,
-			Computed:            true,
-			Description:         "Data center ID",
-			MarkdownDescription: "Data center ID",
-		},
-		"disk_in_gb": schema.Int64Attribute{
-			Optional:            true,
-			Computed:            true,
-			Description:         "Disk size in GB",
-			MarkdownDescription: "Disk size in GB",
-		},
-		"gpu_count": schema.Int64Attribute{
-			Optional:            true,
-			Computed:            true,
-			Description:         "Number of GPUs",
-			MarkdownDescription: "Number of GPUs",
-			Default:             int64default.StaticInt64(1),
-		},
-		"gpu_type_id": schema.StringAttribute{
-			Optional:            true,
-			Computed:            true,
-			Description:         "GPU type ID",
-			MarkdownDescription: "GPU type ID",
-		},
+			"bid_price_per_gpu": schema.Float64Attribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "Bid price per GPU",
+				MarkdownDescription: "Bid price per GPU",
+			},
+			"cpu_count": schema.Int64Attribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "Number of CPUs",
+				MarkdownDescription: "Number of CPUs",
+			},
+			"data_center_id": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "Data center ID",
+				MarkdownDescription: "Data center ID",
+			},
+			"disk_in_gb": schema.Int64Attribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "Disk size in GB",
+				MarkdownDescription: "Disk size in GB",
+			},
+			"gpu_count": schema.Int64Attribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "Number of GPUs",
+				MarkdownDescription: "Number of GPUs",
+				Default:             int64default.StaticInt64(1),
+			},
+			"gpu_type_id": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "GPU type ID",
+				MarkdownDescription: "GPU type ID",
+			},
 			"host_price_per_gpu": schema.Float64Attribute{
 				Optional:            true,
 				Computed:            true,
