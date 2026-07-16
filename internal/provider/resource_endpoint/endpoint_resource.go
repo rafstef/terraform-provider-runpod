@@ -428,6 +428,27 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 		}
 	}
 
+	if val, ok := result["gpuTypePriority"].(string); ok {
+		config.GpuTypePriority = types.StringValue(val)
+	}
+
+	if val, ok := result["cpuFlavorIds"].([]interface{}); ok {
+		cpuFlavorIds := make([]attr.Value, 0)
+		for _, id := range val {
+			if idStr, ok := id.(string); ok {
+				cpuFlavorIds = append(cpuFlavorIds, types.StringValue(idStr))
+			}
+		}
+		if len(cpuFlavorIds) > 0 {
+			cpuFlavorIdsList, diags := types.ListValue(types.StringType, cpuFlavorIds)
+			if diags.HasError() {
+				resp.Diagnostics.Append(diags...)
+				return
+			}
+			config.CpuFlavorIds = cpuFlavorIdsList
+		}
+	}
+
 	diags = resp.State.Set(ctx, &config)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
@@ -999,6 +1020,27 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 
 	if val, ok := result["flashboot"].(bool); ok {
 		state.Flashboot = types.BoolValue(val)
+	}
+
+	if val, ok := result["gpuTypePriority"].(string); ok {
+		state.GpuTypePriority = types.StringValue(val)
+	}
+
+	if val, ok := result["cpuFlavorIds"].([]interface{}); ok {
+		cpuFlavorIds := make([]attr.Value, 0)
+		for _, id := range val {
+			if idStr, ok := id.(string); ok {
+				cpuFlavorIds = append(cpuFlavorIds, types.StringValue(idStr))
+			}
+		}
+		if len(cpuFlavorIds) > 0 {
+			cpuFlavorIdsList, diags := types.ListValue(types.StringType, cpuFlavorIds)
+			if diags.HasError() {
+				resp.Diagnostics.Append(diags...)
+				return
+			}
+			state.CpuFlavorIds = cpuFlavorIdsList
+		}
 	}
 
 	diags = resp.State.Set(ctx, &state)
