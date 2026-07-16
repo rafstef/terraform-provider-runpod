@@ -60,6 +60,7 @@ func EndpointResourceSchema(ctx context.Context) schema.Schema {
 			},
 			"flashboot": schema.BoolAttribute{
 				Optional:            true,
+				Computed:            true,
 				Description:         "Enable flashboot",
 				MarkdownDescription: "Enable flashboot",
 			},

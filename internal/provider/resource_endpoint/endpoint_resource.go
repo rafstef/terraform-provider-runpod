@@ -641,6 +641,10 @@ func (r *EndpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 		}
 	}
 
+	if val, ok := result["flashboot"].(bool); ok {
+		state.Flashboot = types.BoolValue(val)
+	}
+
 	diags = resp.State.Set(ctx, &state)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
@@ -991,6 +995,10 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 			}
 			state.NetworkVolumeIds = networkVolumeIdsList
 		}
+	}
+
+	if val, ok := result["flashboot"].(bool); ok {
+		state.Flashboot = types.BoolValue(val)
 	}
 
 	diags = resp.State.Set(ctx, &state)

@@ -663,3 +663,308 @@ func TestEndpointRead_404_RemovesState(t *testing.T) {
 		t.Error("state was not removed on 404 — CE-1654: deleted endpoint should be removed from state")
 	}
 }
+
+// TestEndpointCreate_FlashbootTrue verifies flashboot=true is sent in the request body
+func TestEndpointCreate_FlashbootTrue(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	m := newBaseModel()
+	m.TemplateId = types.StringValue("tmpl-123")
+	m.Name = types.StringValue("my-ep")
+	m.Flashboot = types.BoolValue(true)
+
+	st := tfsdk.State{Schema: sch}
+	if d := st.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build config: %v", d)
+	}
+	cfg := tfsdk.Config{Schema: sch, Raw: st.Raw}
+
+	var captured map[string]interface{}
+	resp := `{"id":"ep-1","templateId":"tmpl-123","name":"my-ep","flashboot":true}`
+	srv := stubServer(t, 200, resp, &captured, nil, nil)
+	defer srv.Close()
+
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	cresp := &resource.CreateResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Create(ctx, resource.CreateRequest{Config: cfg}, cresp)
+
+	if cresp.Diagnostics.HasError() {
+		t.Fatalf("Create returned diagnostics error: %v", cresp.Diagnostics.Errors())
+	}
+
+	if captured["flashboot"] != true {
+		t.Errorf("request body flashboot = %v, want true", captured["flashboot"])
+	}
+
+	var out EndpointModel
+	if d := cresp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read result state: %v", d)
+	}
+	if !out.Flashboot.ValueBool() {
+		t.Errorf("state Flashboot = %v, want true", out.Flashboot.ValueBool())
+	}
+}
+
+// TestEndpointCreate_FlashbootFalse verifies flashboot=false is sent in the request body
+func TestEndpointCreate_FlashbootFalse(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	m := newBaseModel()
+	m.TemplateId = types.StringValue("tmpl-123")
+	m.Name = types.StringValue("my-ep")
+	m.Flashboot = types.BoolValue(false)
+
+	st := tfsdk.State{Schema: sch}
+	if d := st.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build config: %v", d)
+	}
+	cfg := tfsdk.Config{Schema: sch, Raw: st.Raw}
+
+	var captured map[string]interface{}
+	resp := `{"id":"ep-1","templateId":"tmpl-123","name":"my-ep","flashboot":false}`
+	srv := stubServer(t, 200, resp, &captured, nil, nil)
+	defer srv.Close()
+
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	cresp := &resource.CreateResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Create(ctx, resource.CreateRequest{Config: cfg}, cresp)
+
+	if cresp.Diagnostics.HasError() {
+		t.Fatalf("Create returned diagnostics error: %v", cresp.Diagnostics.Errors())
+	}
+
+	if captured["flashboot"] != false {
+		t.Errorf("request body flashboot = %v, want false", captured["flashboot"])
+	}
+
+	var out EndpointModel
+	if d := cresp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read result state: %v", d)
+	}
+	if out.Flashboot.ValueBool() {
+		t.Errorf("state Flashboot = %v, want false", out.Flashboot.ValueBool())
+	}
+}
+
+// TestEndpointCreate_FlashbootNull verifies flashboot is not sent when null
+func TestEndpointCreate_FlashbootNull(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	m := newBaseModel()
+	m.TemplateId = types.StringValue("tmpl-123")
+	m.Name = types.StringValue("my-ep")
+	// Flashboot left as null (default)
+
+	st := tfsdk.State{Schema: sch}
+	if d := st.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build config: %v", d)
+	}
+	cfg := tfsdk.Config{Schema: sch, Raw: st.Raw}
+
+	var captured map[string]interface{}
+	resp := `{"id":"ep-1","templateId":"tmpl-123","name":"my-ep"}`
+	srv := stubServer(t, 200, resp, &captured, nil, nil)
+	defer srv.Close()
+
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	cresp := &resource.CreateResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Create(ctx, resource.CreateRequest{Config: cfg}, cresp)
+
+	if cresp.Diagnostics.HasError() {
+		t.Fatalf("Create returned diagnostics error: %v", cresp.Diagnostics.Errors())
+	}
+
+	if _, ok := captured["flashboot"]; ok {
+		t.Errorf("request body should not include flashboot when null, got %v", captured["flashboot"])
+	}
+
+	var out EndpointModel
+	if d := cresp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read result state: %v", d)
+	}
+	if !out.Flashboot.IsNull() {
+		t.Errorf("state Flashboot should be null, got %v", out.Flashboot.ValueBool())
+	}
+}
+
+// TestEndpointRead_Flashboot verifies flashboot is parsed from API response
+func TestEndpointRead_Flashboot(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	m := newBaseModel()
+	m.Id = types.StringValue("ep-1")
+	m.TemplateId = types.StringValue("tmpl-123")
+
+	st := tfsdk.State{Schema: sch}
+	if d := st.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build state: %v", d)
+	}
+	reqState := tfsdk.State{Schema: sch, Raw: st.Raw}
+
+	var gotMethod, gotPath string
+	resp := `{"id":"ep-1","templateId":"tmpl-123","name":"my-ep","flashboot":true}`
+	srv := stubServer(t, 200, resp, nil, &gotMethod, &gotPath)
+	defer srv.Close()
+
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	rresp := &resource.ReadResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Read(ctx, resource.ReadRequest{State: reqState}, rresp)
+
+	if rresp.Diagnostics.HasError() {
+		t.Fatalf("Read returned diagnostics error: %v", rresp.Diagnostics.Errors())
+	}
+
+	var out EndpointModel
+	if d := rresp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read result state: %v", d)
+	}
+	if !out.Flashboot.ValueBool() {
+		t.Errorf("state Flashboot = %v, want true", out.Flashboot.ValueBool())
+	}
+}
+
+// TestEndpointRead_FlashbootFalse verifies flashboot=false is parsed correctly
+func TestEndpointRead_FlashbootFalse(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	m := newBaseModel()
+	m.Id = types.StringValue("ep-1")
+	m.TemplateId = types.StringValue("tmpl-123")
+
+	st := tfsdk.State{Schema: sch}
+	if d := st.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build state: %v", d)
+	}
+	reqState := tfsdk.State{Schema: sch, Raw: st.Raw}
+
+	var gotMethod, gotPath string
+	resp := `{"id":"ep-1","templateId":"tmpl-123","name":"my-ep","flashboot":false}`
+	srv := stubServer(t, 200, resp, nil, &gotMethod, &gotPath)
+	defer srv.Close()
+
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	rresp := &resource.ReadResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Read(ctx, resource.ReadRequest{State: reqState}, rresp)
+
+	if rresp.Diagnostics.HasError() {
+		t.Fatalf("Read returned diagnostics error: %v", rresp.Diagnostics.Errors())
+	}
+
+	var out EndpointModel
+	if d := rresp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read result state: %v", d)
+	}
+	if out.Flashboot.ValueBool() {
+		t.Errorf("state Flashboot = %v, want false", out.Flashboot.ValueBool())
+	}
+}
+
+// TestEndpointRead_FlashbootMissing verifies null when flashboot not in response
+func TestEndpointRead_FlashbootMissing(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	m := newBaseModel()
+	m.Id = types.StringValue("ep-1")
+	m.TemplateId = types.StringValue("tmpl-123")
+
+	st := tfsdk.State{Schema: sch}
+	if d := st.Set(ctx, &m); d.HasError() {
+		t.Fatalf("build state: %v", d)
+	}
+	reqState := tfsdk.State{Schema: sch, Raw: st.Raw}
+
+	var gotMethod, gotPath string
+	resp := `{"id":"ep-1","templateId":"tmpl-123","name":"my-ep"}`
+	srv := stubServer(t, 200, resp, nil, &gotMethod, &gotPath)
+	defer srv.Close()
+
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	rresp := &resource.ReadResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Read(ctx, resource.ReadRequest{State: reqState}, rresp)
+
+	if rresp.Diagnostics.HasError() {
+		t.Fatalf("Read returned diagnostics error: %v", rresp.Diagnostics.Errors())
+	}
+
+	var out EndpointModel
+	if d := rresp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read result state: %v", d)
+	}
+	if !out.Flashboot.IsNull() {
+		t.Errorf("state Flashboot should be null, got %v", out.Flashboot.ValueBool())
+	}
+}
+
+// TestEndpointUpdate_Flashboot verifies flashboot update in PATCH request
+func TestEndpointUpdate_Flashboot(t *testing.T) {
+	ctx := context.Background()
+	sch := EndpointResourceSchema(ctx)
+
+	prior := newBaseModel()
+	prior.Id = types.StringValue("ep-1")
+	prior.Name = types.StringValue("my-ep")
+	prior.Flashboot = types.BoolValue(false)
+
+	desired := newBaseModel()
+	desired.Id = types.StringValue("ep-1")
+	desired.Name = types.StringValue("my-ep")
+	desired.Flashboot = types.BoolValue(true)
+
+	priorSt := tfsdk.State{Schema: sch}
+	if d := priorSt.Set(ctx, &prior); d.HasError() {
+		t.Fatalf("build prior state: %v", d)
+	}
+	desiredSt := tfsdk.State{Schema: sch}
+	if d := desiredSt.Set(ctx, &desired); d.HasError() {
+		t.Fatalf("build desired: %v", d)
+	}
+
+	var body map[string]interface{}
+	var method, path string
+	srv := stubServer(t, 200, `{"id":"ep-1","name":"my-ep","flashboot":true}`, &body, &method, &path)
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	uresp := &resource.UpdateResponse{State: tfsdk.State{Schema: sch}}
+	(&EndpointResource{}).Update(ctx, resource.UpdateRequest{
+		Config: tfsdk.Config{Schema: sch, Raw: desiredSt.Raw},
+		State:  priorSt,
+	}, uresp)
+
+	if uresp.Diagnostics.HasError() {
+		t.Fatalf("Update errored: %v", uresp.Diagnostics.Errors())
+	}
+	if method != "PATCH" || path != "/endpoints/ep-1" {
+		t.Errorf("expected PATCH /endpoints/ep-1, got %s %s", method, path)
+	}
+	if body["flashboot"] != true {
+		t.Errorf("PATCH body flashboot = %v, want true", body["flashboot"])
+	}
+
+	var out EndpointModel
+	if d := uresp.State.Get(ctx, &out); d.HasError() {
+		t.Fatalf("read result state: %v", d)
+	}
+	if !out.Flashboot.ValueBool() {
+		t.Errorf("state Flashboot = %v, want true", out.Flashboot.ValueBool())
+	}
+}
