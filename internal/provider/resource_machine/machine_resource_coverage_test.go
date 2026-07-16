@@ -59,8 +59,8 @@ func TestMachineResource_NewMetadataSchema(t *testing.T) {
 func TestMachineRead_MapsAllFields(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"data":{"machine":{` +
-			`"name":"box-1","gpuCount":4,"gpuType":"NVIDIA H100","cpuCount":32,` +
-			`"memoryInGb":256,"diskSizeInGb":2000,"region":"US-CA","listed":true,` +
+			`"name":"box-1","gpuType":{"id":"NVIDIA H100","displayName":"NVIDIA H100"},"cpuCount":32,` +
+			`"gpuTotal":4,"memoryTotal":256,"diskTotal":2000,"location":"US-CA","listed":true,` +
 			`"secureCloud":false,"maintenanceMode":true,"verified":true,"hostPricePerGpu":2.75}}}`))
 	}))
 	defer srv.Close()
