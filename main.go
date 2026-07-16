@@ -17,6 +17,8 @@ import (
 	resource_machine "github.com/runpod/terraform-provider-runpod/internal/provider/resource_machine"
 	resource_network_volume "github.com/runpod/terraform-provider-runpod/internal/provider/resource_network_volume"
 	resource_endpoint "github.com/runpod/terraform-provider-runpod/internal/provider/resource_endpoint"
+	resource_endpoint_job "github.com/runpod/terraform-provider-runpod/internal/provider/resource_endpoint_job"
+	resource_endpoint_worker "github.com/runpod/terraform-provider-runpod/internal/provider/resource_endpoint_worker"
 	resource_template "github.com/runpod/terraform-provider-runpod/internal/provider/resource_template"
 	resource_container_registry_auth "github.com/runpod/terraform-provider-runpod/internal/provider/resource_container_registry_auth"
 	resource_ecr_delegation "github.com/runpod/terraform-provider-runpod/internal/provider/resource_ecr_delegation"
@@ -30,6 +32,8 @@ import (
 	datasource_template "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_template"
 	datasource_container_registry_auth "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_container_registry_auth"
 	datasource_ecr_delegations "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_ecr_delegations"
+
+
 
 	datasource_billing_pod "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_pod"
 	datasource_billing_network_volume "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_network_volume"
@@ -154,6 +158,8 @@ func (p *runpodProvider) DataSources(ctx context.Context) []func() datasource.Da
 		datasource_billing_pod.NewBillingPodDataSource,
 		datasource_billing_network_volume.NewBillingNetworkVolumeDataSource,
 		datasource_billing_endpoint.NewBillingEndpointDataSource,
+
+
 	}
 }
 
@@ -165,6 +171,8 @@ func (p *runpodProvider) Resources(ctx context.Context) []func() resource.Resour
 		resource_machine.NewMachineResource,
 		resource_network_volume.NewNetworkVolumeResource,
 		resource_endpoint.NewEndpointResource,
+		resource_endpoint_job.NewEndpointJobResource,
+		resource_endpoint_worker.NewEndpointWorkerResource,
 		resource_template.NewTemplateResource,
 		resource_container_registry_auth.NewContainerRegistryAuthResource,
 		resource_ecr_delegation.NewEcrDelegationResource,

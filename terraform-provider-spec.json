@@ -631,6 +631,339 @@
           }
         ]
       }
+    },
+    {
+      "name": "endpoint_jobs",
+      "description": "List jobs on a RunPod serverless endpoint",
+      "schema": {
+        "attributes": [
+          {
+            "name": "endpoint_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Endpoint ID"
+            }
+          },
+          {
+            "name": "status",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Filter by job status"
+            }
+          },
+          {
+            "name": "limit",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Maximum number of jobs to return"
+            }
+          },
+          {
+            "name": "offset",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Offset for pagination"
+            }
+          },
+          {
+            "name": "since",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Return jobs created since this timestamp"
+            }
+          },
+          {
+            "name": "cursor",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Cursor for pagination"
+            }
+          },
+          {
+            "name": "jobs",
+            "list": {
+              "computed_optional_required": "computed",
+              "element_type": {
+                "object": {
+                  "attributes": {
+                    "id": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "status": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "duration": {
+                      "int64": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "pod_id": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "container_id": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "worker_id": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "input": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "output": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "log": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "created_at": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "started_at": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "completed_at": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "List of jobs"
+            }
+          },
+          {
+            "name": "next_page_cursor",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Cursor for next page of results"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "endpoint_job_logs",
+      "description": "Stream logs from a RunPod serverless endpoint job via SSE",
+      "schema": {
+        "attributes": [
+          {
+            "name": "endpoint_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Endpoint ID"
+            }
+          },
+          {
+            "name": "job_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Job ID"
+            }
+          },
+          {
+            "name": "timeout",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Timeout in seconds for SSE connection"
+            }
+          },
+          {
+            "name": "logs",
+            "list": {
+              "computed_optional_required": "computed",
+              "element_type": {
+                "object": {
+                  "attributes": {
+                    "timestamp": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "message": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "type": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "List of log events"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "endpoint_workers",
+      "description": "List workers on a RunPod serverless endpoint",
+      "schema": {
+        "attributes": [
+          {
+            "name": "endpoint_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Endpoint ID"
+            }
+          },
+          {
+            "name": "status",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Filter by worker status"
+            }
+          },
+          {
+            "name": "limit",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Maximum number of workers to return"
+            }
+          },
+          {
+            "name": "offset",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Offset for pagination"
+            }
+          },
+          {
+            "name": "workers",
+            "list": {
+              "computed_optional_required": "computed",
+              "element_type": {
+                "object": {
+                  "attributes": {
+                    "id": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "pod_id": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "status": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "uptime_ms": {
+                      "int64": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "start_time": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "last_busy_ms": {
+                      "int64": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "idle_seconds": {
+                      "int64": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "container_id": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "List of workers"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "endpoint_worker_logs",
+      "description": "Stream logs from a RunPod serverless endpoint worker via SSE",
+      "schema": {
+        "attributes": [
+          {
+            "name": "endpoint_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Endpoint ID"
+            }
+          },
+          {
+            "name": "worker_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Worker ID"
+            }
+          },
+          {
+            "name": "timeout",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Timeout in seconds for SSE connection"
+            }
+          },
+          {
+            "name": "logs",
+            "list": {
+              "computed_optional_required": "computed",
+              "element_type": {
+                "object": {
+                  "attributes": {
+                    "timestamp": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "message": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    },
+                    "type": {
+                      "string": {
+                        "computed_optional_required": "computed"
+                      }
+                    }
+                  }
+                }
+              },
+              "description": "List of log events"
+            }
+          }
+        ]
+      }
     }
   ],
   "resources": [
@@ -1178,6 +1511,183 @@
       }
     },
     {
+      "name": "endpoint_job",
+      "description": "Submit and manage jobs on RunPod serverless endpoints",
+      "schema": {
+        "attributes": [
+          {
+            "name": "endpoint_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Endpoint ID"
+            }
+          },
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Job ID"
+            }
+          },
+          {
+            "name": "input",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Job input data"
+            }
+          },
+          {
+            "name": "worker_id",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Worker ID to use for this job"
+            }
+          },
+          {
+            "name": "duration",
+            "int64": {
+              "computed_optional_required": "computed_optional",
+              "description": "Job duration in milliseconds"
+            }
+          },
+          {
+            "name": "pause_container",
+            "bool": {
+              "computed_optional_required": "computed_optional",
+              "description": "Pause container after job completion"
+            }
+          },
+          {
+            "name": "status",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Job status (PENDING, RUNNING, COMPLETED, FAILED, CANCELLED)"
+            }
+          },
+          {
+            "name": "pod_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Pod ID"
+            }
+          },
+          {
+            "name": "container_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Container ID"
+            }
+          },
+          {
+            "name": "output",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Job output data"
+            }
+          },
+          {
+            "name": "log",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Job log output"
+            }
+          },
+          {
+            "name": "created_at",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Creation timestamp"
+            }
+          },
+          {
+            "name": "started_at",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Job start timestamp"
+            }
+          },
+          {
+            "name": "completed_at",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Job completion timestamp"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "endpoint_worker",
+      "description": "Manage workers on RunPod serverless endpoints",
+      "schema": {
+        "attributes": [
+          {
+            "name": "endpoint_id",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "Endpoint ID"
+            }
+          },
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Worker ID"
+            }
+          },
+          {
+            "name": "pod_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Pod ID"
+            }
+          },
+          {
+            "name": "status",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Worker status"
+            }
+          },
+          {
+            "name": "uptime_ms",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Worker uptime in milliseconds"
+            }
+          },
+          {
+            "name": "start_time",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Worker start time"
+            }
+          },
+          {
+            "name": "last_busy_ms",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Milliseconds since epoch when worker was last busy"
+            }
+          },
+          {
+            "name": "idle_seconds",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Seconds since worker was last busy"
+            }
+          },
+          {
+            "name": "container_id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Container ID"
+            }
+          }
+        ]
+      }
+    },
+    {
       "name": "template",
       "description": "Manage RunPod reusable templates for pod configurations",
       "schema": {
@@ -1310,86 +1820,86 @@
               "description": "Whether it's an official RunPod template"
             }
           },
-           {
-             "name": "runtime_in_min",
-             "int64": {
-               "computed_optional_required": "computed",
-               "description": "Runtime in minutes"
-             }
-           }
-         ]
-       }
-     },
-     {
-       "name": "ecr_delegation",
-       "description": "Manage AWS ECR repository delegation",
-       "schema": {
-         "attributes": [
-           {
-             "name": "id",
-             "string": {
-               "computed_optional_required": "computed",
-               "description": "ECR delegation ID"
-             }
-           },
-           {
-             "name": "name",
-             "string": {
-               "computed_optional_required": "computed_optional",
-               "description": "Optional name for the delegation"
-             }
-           },
-           {
-             "name": "resource",
-             "string": {
-               "computed_optional_required": "required",
-               "description": "ECR resource ARN (e.g., arn:aws:ecr:us-east-2:123456789:repository/myapp)"
-             }
-           },
-           {
-             "name": "aws_user",
-             "string": {
-               "computed_optional_required": "computed",
-               "description": "AWS user/role being delegated"
-             }
-           },
-           {
-             "name": "repository",
-             "string": {
-               "computed_optional_required": "computed",
-               "description": "ECR repository name"
-             }
-           },
-           {
-             "name": "tag",
-             "string": {
-               "computed_optional_required": "computed",
-               "description": "ECR image tag"
-             }
-           },
-           {
-             "name": "aws_region",
-             "string": {
-               "computed_optional_required": "computed",
-               "description": "AWS region"
-             }
-           },
-           {
-             "name": "docker_registry_uri",
-             "string": {
-               "computed_optional_required": "computed",
-               "description": "Formatted ECR registry URI for Docker login"
-             }
-           },
-           {
-             "name": "created_at",
-             "string": {
-               "computed_optional_required": "computed",
-               "description": "When the delegation was created"
-             }
-           }
-         ]
-       }
-     }
-   ]
- }
+          {
+            "name": "runtime_in_min",
+            "int64": {
+              "computed_optional_required": "computed",
+              "description": "Runtime in minutes"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ecr_delegation",
+      "description": "Manage AWS ECR repository delegation",
+      "schema": {
+        "attributes": [
+          {
+            "name": "id",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "ECR delegation ID"
+            }
+          },
+          {
+            "name": "name",
+            "string": {
+              "computed_optional_required": "computed_optional",
+              "description": "Optional name for the delegation"
+            }
+          },
+          {
+            "name": "resource",
+            "string": {
+              "computed_optional_required": "required",
+              "description": "ECR resource ARN (e.g., arn:aws:ecr:us-east-2:123456789:repository/myapp)"
+            }
+          },
+          {
+            "name": "aws_user",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "AWS user/role being delegated"
+            }
+          },
+          {
+            "name": "repository",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "ECR repository name"
+            }
+          },
+          {
+            "name": "tag",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "ECR image tag"
+            }
+          },
+          {
+            "name": "aws_region",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "AWS region"
+            }
+          },
+          {
+            "name": "docker_registry_uri",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "Formatted ECR registry URI for Docker login"
+            }
+          },
+          {
+            "name": "created_at",
+            "string": {
+              "computed_optional_required": "computed",
+              "description": "When the delegation was created"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
