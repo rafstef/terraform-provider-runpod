@@ -18,6 +18,12 @@ type RunPodClient struct {
 	Client      *http.Client
 }
 
+// RunPodClientWrapper is a simplified client wrapper for resources that only need REST
+type RunPodClientWrapper struct {
+	APIKey      string
+	RestBaseURL string
+}
+
 func NewRunPodClient(apiKey, graphqlEndpoint, restBaseURL string) *RunPodClient {
 	return &RunPodClient{
 		APIKey:          apiKey,

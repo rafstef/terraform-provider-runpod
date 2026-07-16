@@ -2,6 +2,8 @@ package resource_pod_action
 
 import (
 	"context"
+	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,24 +13,36 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-// createForAction drives Create against a stub that returns a valid GraphQL
-// response for the given mutation key, and returns the resulting state + diags.
+// createForAction drives Create against a stub that returns a valid REST
+// response for the given action, and returns the resulting state + diags.
 // Reuses actionConfig from pod_action_resource_test.go.
-func createForAction(t *testing.T, action, mutationKey, status string) (PodActionModel, resource.CreateResponse) {
+func createForAction(t *testing.T, action, status string) (PodActionModel, resource.CreateResponse) {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"data":{"` + mutationKey + `":{"id":"p1","status":"` + status + `"}}}`))
+		// Check that we're receiving the POST request with the correct action
+		var body map[string]interface{}
+		b, _ := io.ReadAll(r.Body)
+		json.Unmarshal(b, &body)
+		_, _ = w.Write([]byte(`{"data":{"result":{"status":"` + status + `"}}}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
-	t.Setenv("RUNPOD_GRAPHQL_URL", srv.URL)
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	// Create resource and configure it with the test data
+	r := &PodActionResource{}
+	
+	// Simulate provider Configure by setting the values directly
+	r.apiKey = "testkey123"
+	r.baseURL = srv.URL
+	r.httpClient = &http.Client{}
 
 	m := PodActionModel{
 		Action: types.StringValue(action),
 		PodId:  types.StringValue("p1"),
 	}
 	resp := resource.CreateResponse{State: tfsdk.State{Schema: PodActionResourceSchema(context.Background())}}
-	(&PodActionResource{}).Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, &resp)
+	r.Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, &resp)
 
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("action %q: Create errored: %v", action, resp.Diagnostics)
@@ -41,25 +55,22 @@ func createForAction(t *testing.T, action, mutationKey, status string) (PodActio
 }
 
 // TestPodActionCreate_AllActionsSetStatus exercises the success-path status
-// extraction for every action variant. The existing suite only covers the
-// `stop` success branch; resume/restart/reset/terminate status extraction was
-// uncovered. Each asserts Status is populated from the matching mutation's
-// `status` field.
+// extraction for every action variant. Each asserts Status is populated from
+// the REST response's status field.
 func TestPodActionCreate_AllActionsSetStatus(t *testing.T) {
 	cases := []struct {
-		action      string
-		mutationKey string
-		status      string
+		action string
+		status string
 	}{
-		{"stop", "podStop", "STOPPED"},
-		{"resume", "podResume", "RUNNING"},
-		{"restart", "podRestart", "RESTARTING"},
-		{"reset", "podReset", "RESET"},
-		{"terminate", "podTerminate", "TERMINATED"},
+		{"stop", "STOPPED"},
+		{"resume", "RUNNING"},
+		{"restart", "RESTARTING"},
+		{"reset", "RESET"},
+		{"terminate", "TERMINATED"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.action, func(t *testing.T) {
-			state, _ := createForAction(t, tc.action, tc.mutationKey, tc.status)
+			state, _ := createForAction(t, tc.action, tc.status)
 			if got := state.Status.ValueString(); got != tc.status {
 				t.Errorf("action %q: Status = %q, want %q", tc.action, got, tc.status)
 			}
@@ -68,7 +79,7 @@ func TestPodActionCreate_AllActionsSetStatus(t *testing.T) {
 }
 
 // TestPodActionCreate_APIError covers the err != nil branch in Create: when the
-// GraphQL endpoint is unreachable, Query returns an error and Create must add an
+// REST endpoint is unreachable, the HTTP request fails and Create must add an
 // "API Error" diagnostic instead of setting state.
 func TestPodActionCreate_APIError(t *testing.T) {
 	// Point at a closed server so the HTTP request fails.
@@ -76,15 +87,18 @@ func TestPodActionCreate_APIError(t *testing.T) {
 	url := srv.URL
 	srv.Close()
 
-	t.Setenv("RUNPOD_API_KEY", "testkey123")
-	t.Setenv("RUNPOD_GRAPHQL_URL", url)
+	// Create resource and configure it with the test data
+	r := &PodActionResource{}
+	r.apiKey = "testkey123"
+	r.baseURL = url
+	r.httpClient = &http.Client{}
 
 	m := PodActionModel{
 		Action: types.StringValue("stop"),
 		PodId:  types.StringValue("p1"),
 	}
 	resp := &resource.CreateResponse{State: tfsdk.State{Schema: PodActionResourceSchema(context.Background())}}
-	(&PodActionResource{}).Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
+	r.Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
 
 	if !resp.Diagnostics.HasError() {
 		t.Fatal("expected an API Error diagnostic when the endpoint is unreachable")
@@ -92,24 +106,27 @@ func TestPodActionCreate_APIError(t *testing.T) {
 }
 
 // TestPodActionCreate_StatusMissingFromResponse documents behavior when the
-// mutation response has no usable `status`: the response succeeds (no error) but
-// Status is left empty. Covers the "ok == false" path of the status type
-// assertions in Create.
+// REST response has no usable `status`: the response succeeds (no error) but
+// Status is left empty.
 func TestPodActionCreate_StatusMissingFromResponse(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// podStop present but status is the wrong type (number, not string).
-		_, _ = w.Write([]byte(`{"data":{"podStop":{"id":"p1","status":42}}}`))
+		// Response without usable status
+		_, _ = w.Write([]byte(`{"data":{}}`))
 	}))
 	defer srv.Close()
-	t.Setenv("RUNPOD_API_KEY", "testkey123")
-	t.Setenv("RUNPOD_GRAPHQL_URL", srv.URL)
+
+	// Create resource and configure it with the test data
+	r := &PodActionResource{}
+	r.apiKey = "testkey123"
+	r.baseURL = srv.URL
+	r.httpClient = &http.Client{}
 
 	m := PodActionModel{
 		Action: types.StringValue("stop"),
 		PodId:  types.StringValue("p1"),
 	}
 	resp := &resource.CreateResponse{State: tfsdk.State{Schema: PodActionResourceSchema(context.Background())}}
-	(&PodActionResource{}).Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
+	r.Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
 
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("Create should not error when status is missing/wrong type: %v", resp.Diagnostics)

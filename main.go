@@ -139,7 +139,13 @@ func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	}
 
 	p.client = client.NewRunPodClient(p.apiKey, p.graphqlUrl, p.baseUrl)
-	resp.ResourceData = p.client
+	
+	// Pass client wrapper for pod_action resource (uses REST only)
+	clientWrapper := &client.RunPodClientWrapper{
+		APIKey:      p.apiKey,
+		RestBaseURL: p.baseUrl,
+	}
+	resp.ResourceData = clientWrapper
 	resp.DataSourceData = p.client
 
 	log.Printf("API base URL: %s\n", p.baseUrl)
