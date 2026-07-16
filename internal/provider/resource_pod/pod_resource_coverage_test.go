@@ -60,7 +60,7 @@ func TestPodRead_FullFieldMapping(t *testing.T) {
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_BASE_URL", srv.URL)
 
-	m := baseModel()
+	m := baseModelWithListTypes()
 	m.Id = types.StringValue("pod-1")
 	resp := &resource.ReadResponse{State: tfsdk.State{Schema: sch}}
 	(&PodResource{}).Read(ctx, resource.ReadRequest{State: podState(t, m)}, resp)
@@ -99,14 +99,14 @@ func TestPodUpdate_ManyFieldsInBody(t *testing.T) {
 	ctx := context.Background()
 	sch := PodResourceSchema(ctx)
 
-	prior := baseModel()
+	prior := baseModelWithListTypes()
 	prior.Id = types.StringValue("pod-1")
 	prior.Name = types.StringValue("old")
 	prior.VolumeInGb = types.Float64Value(40)
 	prior.VolumeMountPath = types.StringValue("/old")
 	prior.ContainerDiskInGb = types.Int64Value(20)
 
-	desired := baseModel()
+	desired := baseModelWithListTypes()
 	desired.Id = types.StringValue("pod-1")
 	desired.Name = types.StringValue("new")
 	desired.VolumeInGb = types.Float64Value(50)

@@ -183,8 +183,14 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 			},
 			"network_volume_id": schema.StringAttribute{
 				Optional:            true,
-				Description:         "Network volume ID to attach to the pod",
-				MarkdownDescription: "Network volume ID to attach to the pod. When attached, the network volume replaces the pod volume.",
+				Description:         "Network volume ID to attach to the pod (deprecated, use network_volume_ids)",
+				MarkdownDescription: "Network volume ID to attach to the pod. When attached, the network volume replaces the pod volume. Deprecated: use network_volume_ids for multiple volumes.",
+			},
+			"network_volume_ids": schema.ListAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				Description: "List of network volume IDs to attach to the pod",
+				MarkdownDescription: "List of network volume IDs to attach to the pod. Supports multiple network volumes.",
 			},
 			"docker_entrypoint": schema.ListAttribute{
 				ElementType:         types.StringType,
@@ -243,6 +249,7 @@ type PodModel struct {
 	VolumeKey         types.String  `tfsdk:"volume_key"`
 	VolumeMountPath   types.String  `tfsdk:"volume_mount_path"`
   NetworkVolumeId   types.String  `tfsdk:"network_volume_id"`
+  NetworkVolumeIds  types.List    `tfsdk:"network_volume_ids"`
   DockerEntrypoint  types.List    `tfsdk:"docker_entrypoint"`
   DockerStartCmd    types.List    `tfsdk:"docker_start_cmd"`
   Interruptible     types.Bool    `tfsdk:"interruptible"`

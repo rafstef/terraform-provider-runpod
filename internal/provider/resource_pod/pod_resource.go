@@ -180,6 +180,20 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 			}
 			mounts = append(mounts, mount)
 		}
+
+		if !config.NetworkVolumeIds.IsNull() && len(config.NetworkVolumeIds.Elements()) > 0 {
+			for _, id := range config.NetworkVolumeIds.Elements() {
+				if strVal, ok := id.(types.String); ok {
+					mount := map[string]interface{}{
+						"networkVolumeId": strVal.ValueString(),
+					}
+					if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
+						mount["volumeMountPath"] = config.VolumeMountPath.ValueString()
+					}
+					mounts = append(mounts, mount)
+				}
+			}
+		}
 		
 		body["mounts"] = mounts
 	}
@@ -345,6 +359,28 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		if nv, ok := result["networkVolume"].(map[string]interface{}); ok {
 			if id, ok := nv["id"].(string); ok && id != "" {
 				config.NetworkVolumeId = types.StringValue(id)
+			}
+		}
+	}
+
+	if result["networkVolumeIds"] != nil {
+		if nvIds, ok := result["networkVolumeIds"].([]interface{}); ok {
+			nvIdList := make([]attr.Value, 0)
+			for _, nv := range nvIds {
+				if nvMap, ok := nv.(map[string]interface{}); ok {
+					if id, ok := nvMap["id"].(string); ok && id != "" {
+						nvIdList = append(nvIdList, types.StringValue(id))
+					}
+				} else if idStr, ok := nv.(string); ok && idStr != "" {
+					nvIdList = append(nvIdList, types.StringValue(idStr))
+				}
+			}
+			if len(nvIdList) > 0 {
+				config.NetworkVolumeIds, diags = types.ListValue(types.StringType, nvIdList)
+				if diags.HasError() {
+					resp.Diagnostics.Append(diags...)
+					return
+				}
 			}
 		}
 	}
@@ -535,6 +571,28 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		}
 	}
 
+	if result["networkVolumeIds"] != nil {
+		if nvIds, ok := result["networkVolumeIds"].([]interface{}); ok {
+			nvIdList := make([]attr.Value, 0)
+			for _, nv := range nvIds {
+				if nvMap, ok := nv.(map[string]interface{}); ok {
+					if id, ok := nvMap["id"].(string); ok && id != "" {
+						nvIdList = append(nvIdList, types.StringValue(id))
+					}
+				} else if idStr, ok := nv.(string); ok && idStr != "" {
+					nvIdList = append(nvIdList, types.StringValue(idStr))
+				}
+			}
+			if len(nvIdList) > 0 {
+				state.NetworkVolumeIds, diags = types.ListValue(types.StringType, nvIdList)
+				if diags.HasError() {
+					resp.Diagnostics.Append(diags...)
+					return
+				}
+			}
+		}
+	}
+
 	if val, ok := result["dockerEntrypoint"].([]interface{}); ok {
 		entrypointList := make([]attr.Value, 0)
 		for _, v := range val {
@@ -661,6 +719,18 @@ func (r *PodResource) Update(ctx context.Context, req resource.UpdateRequest, re
 
 	if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != state.VolumeMountPath.ValueString() {
 		body["volumeMountPath"] = config.VolumeMountPath.ValueString()
+	}
+
+	if !config.NetworkVolumeIds.IsNull() && len(config.NetworkVolumeIds.Elements()) > 0 {
+		networkVolumeIds := make([]string, 0)
+		for _, id := range config.NetworkVolumeIds.Elements() {
+			if strVal, ok := id.(types.String); ok {
+				networkVolumeIds = append(networkVolumeIds, strVal.ValueString())
+			}
+		}
+		if len(networkVolumeIds) > 0 {
+			body["networkVolumeIds"] = networkVolumeIds
+		}
 	}
 
 	if !config.ContainerDiskInGb.IsNull() && config.ContainerDiskInGb.ValueInt64() != state.ContainerDiskInGb.ValueInt64() {
