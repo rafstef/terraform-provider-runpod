@@ -33,7 +33,10 @@ import (
 	datasource_container_registry_auth "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_container_registry_auth"
 	datasource_ecr_delegations "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_ecr_delegations"
 
-
+	datasource_endpoint_jobs "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_endpoint_jobs"
+	datasource_endpoint_job_logs "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_endpoint_job_logs"
+	datasource_endpoint_workers "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_endpoint_workers"
+	datasource_endpoint_worker_logs "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_endpoint_worker_logs"
 
 	datasource_billing_pod "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_pod"
 	datasource_billing_network_volume "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_network_volume"
@@ -155,11 +158,13 @@ func (p *runpodProvider) DataSources(ctx context.Context) []func() datasource.Da
 		datasource_template.NewTemplateDataSource,
 		datasource_container_registry_auth.NewContainerRegistryAuthDataSource,
 		datasource_ecr_delegations.NewEcrDelegationsDataSource,
+		datasource_endpoint_jobs.NewEndpointJobsDataSource,
+		datasource_endpoint_job_logs.NewEndpointJobLogsDataSource,
+		datasource_endpoint_workers.NewEndpointWorkersDataSource,
+		datasource_endpoint_worker_logs.NewEndpointWorkerLogsDataSource,
 		datasource_billing_pod.NewBillingPodDataSource,
 		datasource_billing_network_volume.NewBillingNetworkVolumeDataSource,
 		datasource_billing_endpoint.NewBillingEndpointDataSource,
-
-
 	}
 }
 
