@@ -127,3 +127,50 @@ func TestEcrDelegationsDataSourceRead_MissingIDField_Errors(t *testing.T) {
 		t.Fatal("expected error when delegation missing id field")
 	}
 }
+
+func TestEcrDelegationsDataSourceRead_WithResourceField(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"delegations":[{"id":"deleg-123","name":"with-resource","resource":"arn:aws:ecr:us-east-1:123456789:repository/myapp","awsUser":"arn:aws:iam::123456789:root","repository":"myapp","tag":"latest","awsRegion":"us-east-1","dockerRegistryUri":"123456789.dkr.ecr.us-east-1.amazonaws.com","createdAt":"2026-07-14T00:00:00Z"}]}}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	resp := &datasource.ReadResponse{State: ecrDelegationsDataSourceState(t)}
+	(&EcrDelegationsDataSource{}).Read(context.Background(), datasource.ReadRequest{}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
+	}
+
+	var out EcrDelegationsDataSourceModel
+	resp.State.Get(context.Background(), &out)
+	if len(out.EcrDelegations) != 1 {
+		t.Errorf("expected 1 delegation, got %d", len(out.EcrDelegations))
+	}
+	if out.EcrDelegations[0].Resource.ValueString() != "arn:aws:ecr:us-east-1:123456789:repository/myapp" {
+		t.Errorf("resource = %q, want arn:aws:ecr:us-east-1:123456789:repository/myapp", out.EcrDelegations[0].Resource.ValueString())
+	}
+}
+
+func TestEcrDelegationsDataSourceRead_ResourceOptional(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"data":{"delegations":[{"id":"deleg-456","name":"no-resource","awsUser":"arn:aws:iam::987654321:root","repository":"repo2","tag":"v1","awsRegion":"us-west-2","dockerRegistryUri":"987654321.dkr.ecr.us-west-2.amazonaws.com","createdAt":"2026-07-13T00:00:00Z"}]}}`))
+	}))
+	defer srv.Close()
+	t.Setenv("RUNPOD_API_KEY", "testkey123")
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
+
+	resp := &datasource.ReadResponse{State: ecrDelegationsDataSourceState(t)}
+	(&EcrDelegationsDataSource{}).Read(context.Background(), datasource.ReadRequest{}, resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics without resource: %v", resp.Diagnostics)
+	}
+
+	var out EcrDelegationsDataSourceModel
+	resp.State.Get(context.Background(), &out)
+	if out.EcrDelegations[0].Resource.ValueString() != "" {
+		t.Errorf("resource should be empty, got %q", out.EcrDelegations[0].Resource.ValueString())
+	}
+}

@@ -28,6 +28,11 @@ func EcrDelegationsDataSourceSchema(ctx context.Context) schema.Schema {
 							Description:         "Optional name for the delegation",
 							MarkdownDescription: "Optional name for the delegation",
 						},
+						"resource": schema.StringAttribute{
+							Computed:            true,
+							Description:         "ECR resource ARN (e.g., arn:aws:ecr:us-east-2:123456789:repository/myapp)",
+							MarkdownDescription: "ECR resource ARN (e.g., `arn:aws:ecr:us-east-2:123456789:repository/myapp`)",
+						},
 						"aws_user": schema.StringAttribute{
 							Computed:            true,
 							Description:         "AWS user/role being delegated",
@@ -68,6 +73,7 @@ func EcrDelegationsDataSourceSchema(ctx context.Context) schema.Schema {
 type EcrDelegationModel struct {
 	Id                  types.String `tfsdk:"id"`
 	Name                types.String `tfsdk:"name"`
+	Resource            types.String `tfsdk:"resource"`
 	AwsUser             types.String `tfsdk:"aws_user"`
 	Repository          types.String `tfsdk:"repository"`
 	Tag                 types.String `tfsdk:"tag"`

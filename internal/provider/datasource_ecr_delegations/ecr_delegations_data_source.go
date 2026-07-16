@@ -117,7 +117,7 @@ func (d *EcrDelegationsDataSource) Read(ctx context.Context, req datasource.Read
 
 	models := make([]EcrDelegationModel, len(delegations))
 	for i, d := range delegations {
-		var id, name, awsUser, repository, tag, awsRegion, dockerRegistryUri, createdAt string
+		var id, name, resource, awsUser, repository, tag, awsRegion, dockerRegistryUri, createdAt string
 
 		if v, ok := d["id"].(string); ok {
 			id = v
@@ -128,6 +128,10 @@ func (d *EcrDelegationsDataSource) Read(ctx context.Context, req datasource.Read
 
 		if v, ok := d["name"].(string); ok {
 			name = v
+		}
+
+		if v, ok := d["resource"].(string); ok {
+			resource = v
 		}
 
 		if v, ok := d["awsUser"].(string); ok {
@@ -157,6 +161,7 @@ func (d *EcrDelegationsDataSource) Read(ctx context.Context, req datasource.Read
 		models[i] = EcrDelegationModel{
 			Id:                types.StringValue(id),
 			Name:              types.StringValue(name),
+			Resource:          types.StringValue(resource),
 			AwsUser:           types.StringValue(awsUser),
 			Repository:        types.StringValue(repository),
 			Tag:               types.StringValue(tag),
