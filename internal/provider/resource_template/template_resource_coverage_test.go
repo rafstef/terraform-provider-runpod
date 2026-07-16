@@ -119,9 +119,17 @@ func TestTemplateUpdate_ManyFields(t *testing.T) {
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("Update errored: %v", resp.Diagnostics.Errors())
 	}
-	for _, k := range []string{"name", "imageName", "category", "containerDiskInGb", "containerRegistryAuthId", "env", "isPublic", "readme", "volumeMountPath"} {
+	for _, k := range []string{"name", "image", "category", "disk", "containerRegistryAuthId", "env", "public", "readme"} {
 		if _, ok := body[k]; !ok {
 			t.Errorf("PATCH body missing %q; got %v", k, body)
 		}
+	}
+	if mounts, ok := body["mounts"].([]interface{}); ok && len(mounts) > 0 {
+		mount := mounts[0].(map[string]interface{})
+		if _, ok := mount["volumeMountPath"]; !ok {
+			t.Errorf("PATCH body mounts missing volumeMountPath; got %v", body)
+		}
+	} else {
+		t.Errorf("PATCH body missing mounts array; got %v", body)
 	}
 }
