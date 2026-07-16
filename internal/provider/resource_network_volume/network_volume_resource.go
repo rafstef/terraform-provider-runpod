@@ -64,16 +64,16 @@ func (r *NetworkVolumeResource) Create(ctx context.Context, req resource.CreateR
 
 	client := r.getClient()
 
-	url := client.RestBaseURL + "/networkvolumes"
+	url := client.RestBaseURL + "/network-volumes"
 
 	body := map[string]interface{}{
-		"name":        config.Name.ValueString(),
-		"size":        int64(config.Size.ValueInt64()),
-		"dataCenterId": config.DataCenterId.ValueString(),
+		"name":       config.Name.ValueString(),
+		"size":       int64(config.Size.ValueInt64()),
+		"dataCenter": config.DataCenterId.ValueString(),
 	}
 
-	if !config.StorageTier.IsNull() && config.StorageTier.ValueString() != "" {
-		body["storageTier"] = config.StorageTier.ValueString()
+	if !config.Type.IsNull() && config.Type.ValueString() != "" {
+		body["type"] = config.Type.ValueString()
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -105,10 +105,22 @@ func (r *NetworkVolumeResource) Create(ctx context.Context, req resource.CreateR
 		return
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
+	}
+
+	var result map[string]interface{}
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		if networkVolume, ok := data["networkVolume"].(map[string]interface{}); ok {
+			result = networkVolume
+		} else {
+			resp.Diagnostics.AddError("API Error", "Failed to extract network volume from v2 response data")
+			return
+		}
+	} else {
+		result = envelope
 	}
 
 	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {
@@ -135,14 +147,14 @@ func (r *NetworkVolumeResource) Create(ctx context.Context, req resource.CreateR
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Missing 'size' in network volume response: %v", result))
 		return
 	}
-	if val, ok := result["dataCenterId"].(string); ok {
+	if val, ok := result["dataCenter"].(string); ok {
 		config.DataCenterId = types.StringValue(val)
 	} else {
-		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Missing 'dataCenterId' in network volume response: %v", result))
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Missing 'dataCenter' in network volume response: %v", result))
 		return
 	}
-	if val, ok := result["storageTier"].(string); ok {
-		config.StorageTier = types.StringValue(val)
+	if val, ok := result["type"].(string); ok {
+		config.Type = types.StringValue(val)
 	}
 
 	diags = resp.State.Set(ctx, &config)
@@ -162,7 +174,7 @@ func (r *NetworkVolumeResource) Read(ctx context.Context, req resource.ReadReque
 
 	client := r.getClient()
 
-	url := client.RestBaseURL + "/networkvolumes/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/network-volumes/" + state.Id.ValueString()
 
 	reqHTTP, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -192,10 +204,22 @@ func (r *NetworkVolumeResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
+	}
+
+	var result map[string]interface{}
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		if networkVolume, ok := data["networkVolume"].(map[string]interface{}); ok {
+			result = networkVolume
+		} else {
+			resp.Diagnostics.AddError("API Error", "Failed to extract network volume from v2 response data")
+			return
+		}
+	} else {
+		result = envelope
 	}
 
 	if result == nil {
@@ -206,60 +230,19 @@ func (r *NetworkVolumeResource) Read(ctx context.Context, req resource.ReadReque
 	if val, ok := result["name"].(string); ok {
 		state.Name = types.StringValue(val)
 	}
-if val, ok := result["size"].(float64); ok {
+	if val, ok := result["size"].(float64); ok {
 		state.Size = types.Int64Value(int64(val))
 	}
-	if val, ok := result["dataCenterId"].(string); ok {
+	if val, ok := result["dataCenter"].(string); ok {
 		state.DataCenterId = types.StringValue(val)
 	}
-	if val, ok := result["storageTier"].(string); ok {
-		state.StorageTier = types.StringValue(val)
+	if val, ok := result["type"].(string); ok {
+		state.Type = types.StringValue(val)
 	}
 
 	diags = resp.State.Set(ctx, &state)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
-		return
-	}
-}
-
-func (r *NetworkVolumeResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state NetworkVolumeModel
-	diags := req.State.Get(ctx, &state)
-	if diags.HasError() {
-		resp.Diagnostics.Append(diags...)
-		return
-	}
-
-	client := r.getClient()
-
-	url := client.RestBaseURL + "/networkvolumes/" + state.Id.ValueString()
-
-	reqHTTP, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
-	if err != nil {
-		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
-		return
-	}
-
-	reqHTTP.Header.Set("Content-Type", "application/json")
-	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
-
-	httpClient := &http.Client{}
-	respHTTP, err := httpClient.Do(reqHTTP)
-	if err != nil {
-		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to make API call: %v", err))
-		return
-	}
-	defer respHTTP.Body.Close()
-
-	respBody, err := io.ReadAll(respHTTP.Body)
-	if err != nil {
-		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to read response: %v", err))
-		return
-	}
-
-	if respHTTP.StatusCode != 204 {
-		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to delete network volume (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
 	}
 }
@@ -281,10 +264,28 @@ func (r *NetworkVolumeResource) Update(ctx context.Context, req resource.UpdateR
 
 	client := r.getClient()
 
-	url := client.RestBaseURL + "/networkvolumes/" + state.Id.ValueString()
+	url := client.RestBaseURL + "/network-volumes/" + state.Id.ValueString()
 
-	body := map[string]interface{}{
-		"name": config.Name.ValueString(),
+	body := map[string]interface{}{}
+
+	if !config.Name.IsNull() && config.Name.ValueString() != state.Name.ValueString() {
+		body["name"] = config.Name.ValueString()
+	}
+
+	if !config.Size.IsNull() && config.Size.ValueInt64() != state.Size.ValueInt64() {
+		body["size"] = int64(config.Size.ValueInt64())
+	}
+
+	if !config.Type.IsNull() && config.Type.ValueString() != state.Type.ValueString() {
+		body["type"] = config.Type.ValueString()
+	}
+
+	if len(body) == 0 {
+		diags = resp.State.Set(ctx, &config)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+		}
+		return
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -316,10 +317,22 @@ func (r *NetworkVolumeResource) Update(ctx context.Context, req resource.UpdateR
 		return
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
+	}
+
+	var result map[string]interface{}
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		if networkVolume, ok := data["networkVolume"].(map[string]interface{}); ok {
+			result = networkVolume
+		} else {
+			resp.Diagnostics.AddError("API Error", "Failed to extract network volume from v2 response data")
+			return
+		}
+	} else {
+		result = envelope
 	}
 
 	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {
@@ -328,24 +341,65 @@ func (r *NetworkVolumeResource) Update(ctx context.Context, req resource.UpdateR
 	}
 
 	if val, ok := result["name"].(string); ok {
-		state.Name = types.StringValue(val)
+		config.Name = types.StringValue(val)
 	} else {
-		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Missing 'name' in network volume response: %v", result))
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Missing 'name' in network volume update response: %v", result))
 		return
 	}
-	if val, ok := result["storageTier"].(string); ok {
-		state.StorageTier = types.StringValue(val)
+	if val, ok := result["size"].(float64); ok {
+		config.Size = types.Int64Value(int64(val))
 	}
-
-	diags = resp.State.Set(ctx, &state)
-	if diags.HasError() {
-		resp.Diagnostics.Append(diags...)
-		return
+	if val, ok := result["dataCenter"].(string); ok {
+		config.DataCenterId = types.StringValue(val)
+	}
+	if val, ok := result["type"].(string); ok {
+		config.Type = types.StringValue(val)
 	}
 
 	diags = resp.State.Set(ctx, &config)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
+		return
+	}
+}
+
+func (r *NetworkVolumeResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state NetworkVolumeModel
+	diags := req.State.Get(ctx, &state)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	client := r.getClient()
+
+	url := client.RestBaseURL + "/network-volumes/" + state.Id.ValueString()
+
+	reqHTTP, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
+		return
+	}
+
+	reqHTTP.Header.Set("Content-Type", "application/json")
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
+
+	httpClient := &http.Client{}
+	respHTTP, err := httpClient.Do(reqHTTP)
+	if err != nil {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to make API call: %v", err))
+		return
+	}
+	defer respHTTP.Body.Close()
+
+	respBody, err := io.ReadAll(respHTTP.Body)
+	if err != nil {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to read response: %v", err))
+		return
+	}
+
+	if respHTTP.StatusCode != 204 {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to delete network volume (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
 	}
 }

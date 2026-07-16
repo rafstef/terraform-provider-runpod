@@ -3,6 +3,7 @@ package resource_network_volume
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -21,7 +22,7 @@ func nvModel() NetworkVolumeModel {
 		Name:         types.StringNull(),
 		Size:         types.Int64Null(),
 		DataCenterId: types.StringNull(),
-		StorageTier:  types.StringNull(),
+		Type:  types.StringNull(),
 	}
 }
 
@@ -41,7 +42,11 @@ func nvStub(t *testing.T, status int, body string, captured *map[string]interfac
 			*captured = m
 		}
 		w.WriteHeader(status)
-		_, _ = w.Write([]byte(body))
+		if status == 204 {
+			_, _ = w.Write([]byte(""))
+		} else {
+			_, _ = w.Write([]byte(fmt.Sprintf(`{"data":{"networkVolume":%s},"meta":{},"error":null}`, body)))
+		}
 	}))
 }
 
@@ -77,7 +82,7 @@ func TestNetworkVolumeCreate_Success(t *testing.T) {
 	m.DataCenterId = types.StringValue("US-CA-1")
 
 	var body map[string]interface{}
-	srv := nvStub(t, 200, `{"id":"nv-1","name":"vol-a","size":50,"dataCenterId":"US-CA-1","storageTier":"standard"}`, &body, nil, nil)
+	srv := nvStub(t, 200, `{"id":"nv-1","name":"vol-a","size":50,"dataCenter":"US-CA-1","type":"standard"}`, &body, nil, nil)
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_BASE_URL", srv.URL)
@@ -88,20 +93,20 @@ func TestNetworkVolumeCreate_Success(t *testing.T) {
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("Create errored: %v", resp.Diagnostics.Errors())
 	}
-	if body["name"] != "vol-a" || body["size"] != float64(50) || body["dataCenterId"] != "US-CA-1" {
+	if body["name"] != "vol-a" || body["size"] != float64(50) || body["dataCenter"] != "US-CA-1" {
 		t.Errorf("request body missing fields; got %v", body)
 	}
 	var out NetworkVolumeModel
 	if d := resp.State.Get(ctx, &out); d.HasError() {
 		t.Fatalf("read state: %v", d)
 	}
-	if out.Id.ValueString() != "nv-1" || out.StorageTier.ValueString() != "standard" {
-		t.Errorf("state not populated: id=%q tier=%q", out.Id.ValueString(), out.StorageTier.ValueString())
+	if out.Id.ValueString() != "nv-1" || out.Type.ValueString() != "standard" {
+		t.Errorf("state not populated: id=%q tier=%q", out.Id.ValueString(), out.Type.ValueString())
 	}
 }
 
 // TestNetworkVolumeCreate_Accepts201 locks in CE-1681: the v1 API returns 201
-// Created for POST /networkvolumes, so Create must treat 201 as success (not only
+// Created for POST /network-volumes, so Create must treat 201 as success (not only
 // 200). Before #44 this failed on a successful create and orphaned the volume.
 func TestNetworkVolumeCreate_Accepts201(t *testing.T) {
 	ctx := context.Background()
@@ -111,7 +116,7 @@ func TestNetworkVolumeCreate_Accepts201(t *testing.T) {
 	m.Size = types.Int64Value(50)
 	m.DataCenterId = types.StringValue("US-CA-1")
 
-	srv := nvStub(t, 201, `{"id":"nv-1","name":"vol-a","size":50,"dataCenterId":"US-CA-1","storageTier":"standard"}`, nil, nil, nil)
+	srv := nvStub(t, 201, `{"id":"nv-1","name":"vol-a","size":50,"dataCenter":"US-CA-1","type":"standard"}`, nil, nil, nil)
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_BASE_URL", srv.URL)
@@ -175,7 +180,7 @@ func TestNetworkVolumeRead_Success(t *testing.T) {
 	m := nvModel()
 	m.Id = types.StringValue("nv-1")
 	var method, path string
-	srv := nvStub(t, 200, `{"id":"nv-1","name":"renamed","size":100,"dataCenterId":"EU-1","storageTier":"premium"}`, nil, &method, &path)
+	srv := nvStub(t, 200, `{"id":"nv-1","name":"renamed","size":100,"dataCenter":"EU-1","type":"premium"}`, nil, &method, &path)
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_BASE_URL", srv.URL)
@@ -186,8 +191,8 @@ func TestNetworkVolumeRead_Success(t *testing.T) {
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("Read errored: %v", resp.Diagnostics.Errors())
 	}
-	if method != "GET" || path != "/networkvolumes/nv-1" {
-		t.Errorf("expected GET /networkvolumes/nv-1, got %s %s", method, path)
+	if method != "GET" || path != "/network-volumes/nv-1" {
+		t.Errorf("expected GET /network-volumes/nv-1, got %s %s", method, path)
 	}
 	var out NetworkVolumeModel
 	if d := resp.State.Get(ctx, &out); d.HasError() {
@@ -233,7 +238,7 @@ func TestNetworkVolumeUpdate_Success(t *testing.T) {
 	desired.Name = types.StringValue("new-name")
 
 	var method, path string
-	srv := nvStub(t, 200, `{"id":"nv-1","name":"new-name","size":50,"dataCenterId":"US-CA-1","storageTier":"standard"}`, nil, &method, &path)
+	srv := nvStub(t, 200, `{"id":"nv-1","name":"new-name","size":50,"dataCenter":"US-CA-1","type":"standard"}`, nil, &method, &path)
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_BASE_URL", srv.URL)
@@ -248,8 +253,8 @@ func TestNetworkVolumeUpdate_Success(t *testing.T) {
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("Update errored: %v", resp.Diagnostics.Errors())
 	}
-	if method != "PATCH" || path != "/networkvolumes/nv-1" {
-		t.Errorf("expected PATCH /networkvolumes/nv-1, got %s %s", method, path)
+	if method != "PATCH" || path != "/network-volumes/nv-1" {
+		t.Errorf("expected PATCH /network-volumes/nv-1, got %s %s", method, path)
 	}
 }
 
@@ -278,7 +283,7 @@ func TestNetworkVolumeUpdate_PreservesComputedState(t *testing.T) {
 	prior.Name = types.StringValue("old-name")
 	prior.Size = types.Int64Value(50)
 	prior.DataCenterId = types.StringValue("US-CA-1")
-	prior.StorageTier = types.StringValue("standard")
+	prior.Type = types.StringValue("standard")
 
 	// Config as real Terraform supplies it on update: id is Computed (null in
 	// config) and storage_tier is left unset. Only name changes.
@@ -286,10 +291,10 @@ func TestNetworkVolumeUpdate_PreservesComputedState(t *testing.T) {
 	desired.Name = types.StringValue("new-name")
 	desired.Size = types.Int64Value(50)
 	desired.DataCenterId = types.StringValue("US-CA-1")
-	// Id and StorageTier intentionally left Null (nvModel defaults).
+	// Id and Type intentionally left Null (nvModel defaults).
 
 	// PATCH response returns the full resolved body (id + storageTier present).
-	srv := nvStub(t, 200, `{"id":"nv-1","name":"new-name","size":50,"dataCenterId":"US-CA-1","storageTier":"standard"}`, nil, nil, nil)
+	srv := nvStub(t, 200, `{"id":"nv-1","name":"new-name","size":50,"dataCenter":"US-CA-1","type":"standard"}`, nil, nil, nil)
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_BASE_URL", srv.URL)
@@ -312,8 +317,8 @@ func TestNetworkVolumeUpdate_PreservesComputedState(t *testing.T) {
 	if out.Id.ValueString() != "nv-1" {
 		t.Errorf("id = %q, want \"nv-1\" preserved (CE-1688: Update must not clobber computed state)", out.Id.ValueString())
 	}
-	if out.StorageTier.ValueString() != "standard" {
-		t.Errorf("storage_tier = %q, want \"standard\" preserved (CE-1688)", out.StorageTier.ValueString())
+	if out.Type.ValueString() != "standard" {
+		t.Errorf("storage_tier = %q, want \"standard\" preserved (CE-1688)", out.Type.ValueString())
 	}
 }
 
@@ -357,7 +362,7 @@ func TestNetworkVolumeDelete_Success(t *testing.T) {
 	m := nvModel()
 	m.Id = types.StringValue("nv-1")
 	var method, path string
-	srv := nvStub(t, 204, ``, nil, &method, &path)
+	srv := nvStub(t, 204, `{"data":{},"meta":{},"error":null}`, nil, &method, &path)
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_BASE_URL", srv.URL)
@@ -368,8 +373,8 @@ func TestNetworkVolumeDelete_Success(t *testing.T) {
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("Delete errored: %v", resp.Diagnostics.Errors())
 	}
-	if method != "DELETE" || path != "/networkvolumes/nv-1" {
-		t.Errorf("expected DELETE /networkvolumes/nv-1, got %s %s", method, path)
+	if method != "DELETE" || path != "/network-volumes/nv-1" {
+		t.Errorf("expected DELETE /network-volumes/nv-1, got %s %s", method, path)
 	}
 }
 

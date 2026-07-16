@@ -32,7 +32,7 @@ func NetworkVolumeResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Size of the network volume in GB",
 				MarkdownDescription: "Size of the network volume in GB",
 			},
-			"storage_tier": schema.StringAttribute{
+			"type": schema.StringAttribute{
 				Optional:            true,
 				Description:         "Storage tier: STANDARD or HIGH_PERFORMANCE",
 				MarkdownDescription: "Storage tier: STANDARD or HIGH_PERFORMANCE",
@@ -46,5 +46,5 @@ type NetworkVolumeModel struct {
 	Id             types.String `tfsdk:"id"`
 	Name           types.String `tfsdk:"name"`
 	Size           types.Int64  `tfsdk:"size"`
-	StorageTier    types.String `tfsdk:"storage_tier"`
+	Type           types.String `tfsdk:"type"`
 }
