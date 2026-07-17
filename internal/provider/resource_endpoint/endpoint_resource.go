@@ -68,7 +68,11 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 	url := client.RestBaseURL + "/endpoints"
 
 	body := map[string]interface{}{
-		"templateId": config.TemplateId.ValueString(),
+		"image": config.ImageName.ValueString(),
+		"gpu": map[string]interface{}{
+			"id":    config.GpuTypeId.ValueString(),
+			"count": config.GpuCount.ValueInt64(),
+		},
 	}
 
 	if !config.Name.IsNull() && config.Name.ValueString() != "" {
@@ -507,9 +511,9 @@ func (r *EndpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	if val, ok := result["templateId"].(string); ok {
-		state.TemplateId = types.StringValue(val)
-	}
+ 	if val, ok := result["image"].(string); ok {
+ 		state.ImageName = types.StringValue(val)
+ 	}
 	if val, ok := result["name"].(string); ok {
 		state.Name = types.StringValue(val)
 	}
@@ -664,6 +668,12 @@ func (r *EndpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 	if val, ok := result["flashboot"].(bool); ok {
 		state.Flashboot = types.BoolValue(val)
+	}
+	if val, ok := result["cloud"].(string); ok {
+		state.CloudType = types.StringValue(val)
+	}
+	if val, ok := result["disk"].(float64); ok {
+		state.ContainerDiskInGb = types.Int64Value(int64(val))
 	}
 
 	diags = resp.State.Set(ctx, &state)
