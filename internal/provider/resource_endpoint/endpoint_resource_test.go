@@ -432,18 +432,19 @@ func strList(vals ...string) types.List {
 }
 
 // TestEndpointCreate_WithListFields exercises Create's list/map body-building
-// branches (networkVolumeIds, dataCenterIds, gpuTypeIds, allowedCudaVersions,
+// branches (networkVolumeIds, dataCenterIds, allowedCudaVersions,
 // env) — the bulk of Create the happy-path test doesn't reach.
 func TestEndpointCreate_WithListFields(t *testing.T) {
 	ctx := context.Background()
 	sch := EndpointResourceSchema(ctx)
 
 	m := newBaseModel()
-	m.TemplateId = types.StringValue("tmpl-123")
+	m.ImageName = types.StringValue("runpod/worker:latest")
+	m.GpuTypeId = types.StringValue("NVIDIA A100")
+	m.GpuCount = types.Int64Value(1)
 	m.Name = types.StringValue("my-ep")
 	m.NetworkVolumeIds = strList("nv-1", "nv-2")
 	m.DataCenterIds = strList("US-CA-1")
-	m.GpuTypeIds = strList("NVIDIA A100")
 	m.AllowedCudaVersions = strList("12.0", "12.1")
 	m.Env = types.MapValueMust(types.StringType, map[string]attr.Value{"MY_VAR": types.StringValue("x")})
 
@@ -454,7 +455,7 @@ func TestEndpointCreate_WithListFields(t *testing.T) {
 	cfg := tfsdk.Config{Schema: sch, Raw: st.Raw}
 
 	var body map[string]interface{}
-	srv := stubServer(t, 200, `{"id":"ep-1","templateId":"tmpl-123","name":"my-ep"}`, &body, nil, nil)
+	srv := stubServer(t, 200, `{"id":"ep-1","templateId":"tmpl-123","name":"my-ep","image":"runpod/worker:latest","gpu":{"id":"NVIDIA A100","count":1}}`, &body, nil, nil)
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_BASE_URL", srv.URL)
@@ -465,7 +466,7 @@ func TestEndpointCreate_WithListFields(t *testing.T) {
 		t.Fatalf("Create errored: %v", cresp.Diagnostics.Errors())
 	}
 
-	for _, k := range []string{"networkVolumeIds", "dataCenterIds", "gpuTypeIds", "allowedCudaVersions"} {
+	for _, k := range []string{"networkVolumeIds", "dataCenterIds", "allowedCudaVersions"} {
 		arr, ok := body[k].([]interface{})
 		if !ok || len(arr) == 0 {
 			t.Errorf("body[%q] not a non-empty array; got %v", k, body[k])

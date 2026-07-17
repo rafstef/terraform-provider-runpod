@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 
 	client "github.com/runpod/terraform-provider-runpod/internal/provider/client"
 )
@@ -123,8 +123,12 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 		body["computeType"] = config.ComputeType.ValueString()
 	}
 
-	if !config.GpuCount.IsNull() {
-		body["gpuCount"] = int64(config.GpuCount.ValueInt64())
+	if !config.CloudType.IsNull() && config.CloudType.ValueString() != "" {
+		body["cloudType"] = config.CloudType.ValueString()
+	}
+
+	if !config.ContainerDiskInGb.IsNull() {
+		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
 
 	if !config.VcpuCount.IsNull() {
@@ -169,22 +173,6 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 
 	if !config.MinCudaVersion.IsNull() && config.MinCudaVersion.ValueString() != "" {
 		body["minCudaVersion"] = config.MinCudaVersion.ValueString()
-	}
-
-	if !config.GpuTypeIds.IsNull() && len(config.GpuTypeIds.Elements()) > 0 {
-		gpuTypeIds := make([]interface{}, 0)
-		for _, id := range config.GpuTypeIds.Elements() {
-			if strVal, ok := id.(types.String); ok {
-				gpuTypeIds = append(gpuTypeIds, strVal.ValueString())
-			}
-		}
-		if len(gpuTypeIds) > 0 {
-			body["gpuTypeIds"] = gpuTypeIds
-		}
-	}
-
-	if !config.GpuTypePriority.IsNull() && config.GpuTypePriority.ValueString() != "" {
-		body["gpuTypePriority"] = config.GpuTypePriority.ValueString()
 	}
 
 	if !config.CpuFlavorIds.IsNull() && len(config.CpuFlavorIds.Elements()) > 0 {
@@ -511,9 +499,9 @@ func (r *EndpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
- 	if val, ok := result["image"].(string); ok {
- 		state.ImageName = types.StringValue(val)
- 	}
+	if val, ok := result["image"].(string); ok {
+		state.ImageName = types.StringValue(val)
+	}
 	if val, ok := result["name"].(string); ok {
 		state.Name = types.StringValue(val)
 	}
@@ -752,8 +740,12 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 		body["computeType"] = config.ComputeType.ValueString()
 	}
 
-	if !config.GpuCount.IsNull() {
-		body["gpuCount"] = int64(config.GpuCount.ValueInt64())
+	if !config.CloudType.IsNull() && config.CloudType.ValueString() != "" {
+		body["cloudType"] = config.CloudType.ValueString()
+	}
+
+	if !config.ContainerDiskInGb.IsNull() {
+		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
 
 	if !config.VcpuCount.IsNull() {
@@ -834,6 +826,14 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 
 	if !config.Flashboot.IsNull() {
 		body["flashboot"] = config.Flashboot.ValueBool()
+	}
+
+	if !config.CloudType.IsNull() && config.CloudType.ValueString() != "" {
+		body["cloudType"] = config.CloudType.ValueString()
+	}
+
+	if !config.ContainerDiskInGb.IsNull() {
+		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
 
 	jsonBody, err := json.Marshal(body)
