@@ -5,9 +5,14 @@ variable "runpod_api_key" {
   default     = ""
 }
 
-variable "template_id" {
+variable "image_name" {
   type        = string
-  description = "Template ID to use for the endpoint"
+  description = "Container image name (v2 required)"
+}
+
+variable "gpu_type_id" {
+  type        = string
+  description = "GPU type ID (v2 required)"
 }
 
 variable "endpoint_name" {
@@ -30,7 +35,7 @@ variable "workers_max" {
 
 variable "idle_timeout" {
   type        = number
-  description = "Idle timeout in seconds"
+  description = "Idle timeout in minutes"
   default     = 5
 }
 
