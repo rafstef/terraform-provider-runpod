@@ -87,7 +87,9 @@ func TestEndpointCreate_Success(t *testing.T) {
 	sch := EndpointResourceSchema(ctx)
 
 	m := newBaseModel()
-	m.TemplateId = types.StringValue("tmpl-123")
+	m.ImageName = types.StringValue("runpod/worker:latest")
+	m.GpuTypeId = types.StringValue("GPU-1")
+	m.GpuCount = types.Int64Value(1)
 	m.Name = types.StringValue("my-ep")
 	m.WorkersMin = types.Int64Value(1)
 	m.WorkersMax = types.Int64Value(3)
@@ -114,8 +116,15 @@ func TestEndpointCreate_Success(t *testing.T) {
 	}
 
 	// request body assertions
-	if captured["templateId"] != "tmpl-123" {
-		t.Errorf("request body templateId = %v, want tmpl-123", captured["templateId"])
+	if captured["image"] != "runpod/worker:latest" {
+		t.Errorf("request body image = %v, want runpod/worker:latest", captured["image"])
+	}
+	gpu := captured["gpu"].(map[string]interface{})
+	if gpu["id"] != "GPU-1" {
+		t.Errorf("request body gpu.id = %v, want GPU-1", gpu["id"])
+	}
+	if gpu["count"] != float64(1) {
+		t.Errorf("request body gpu.count = %v, want 1", gpu["count"])
 	}
 	if captured["name"] != "my-ep" {
 		t.Errorf("request body name = %v, want my-ep", captured["name"])
