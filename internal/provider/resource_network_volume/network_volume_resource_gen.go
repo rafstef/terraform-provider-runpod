@@ -34,6 +34,7 @@ func NetworkVolumeResourceSchema(ctx context.Context) schema.Schema {
 			},
 			"type": schema.StringAttribute{
 				Optional:            true,
+				Computed:            true,
 				Description:         "Storage tier: STANDARD or HIGH_PERFORMANCE",
 				MarkdownDescription: "Storage tier: STANDARD or HIGH_PERFORMANCE",
 			},
