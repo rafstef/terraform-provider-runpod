@@ -802,22 +802,6 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 		body["minCudaVersion"] = config.MinCudaVersion.ValueString()
 	}
 
-	if !config.GpuTypeIds.IsNull() && len(config.GpuTypeIds.Elements()) > 0 {
-		gpuTypeIds := make([]interface{}, 0)
-		for _, id := range config.GpuTypeIds.Elements() {
-			if strVal, ok := id.(types.String); ok {
-				gpuTypeIds = append(gpuTypeIds, strVal.ValueString())
-			}
-		}
-		if len(gpuTypeIds) > 0 {
-			body["gpuTypeIds"] = gpuTypeIds
-		}
-	}
-
-	if !config.GpuTypePriority.IsNull() && config.GpuTypePriority.ValueString() != "" {
-		body["gpuTypePriority"] = config.GpuTypePriority.ValueString()
-	}
-
 	if !config.CpuFlavorIds.IsNull() && len(config.CpuFlavorIds.Elements()) > 0 {
 		cpuFlavorIds := make([]interface{}, 0)
 		for _, id := range config.CpuFlavorIds.Elements() {
