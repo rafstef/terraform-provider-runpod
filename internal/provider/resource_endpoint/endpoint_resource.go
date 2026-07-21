@@ -696,6 +696,16 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 		body["name"] = config.Name.ValueString()
 	}
 
+	if !config.ImageName.IsNull() && config.ImageName.ValueString() != "" {
+		body["image"] = config.ImageName.ValueString()
+	}
+	if !config.GpuTypeId.IsNull() && config.GpuTypeId.ValueString() != "" {
+		body["gpu"] = map[string]interface{}{
+			"id":    config.GpuTypeId.ValueString(),
+			"count": config.GpuCount.ValueInt64(),
+		}
+	}
+
 	if !config.NetworkVolumeId.IsNull() && config.NetworkVolumeId.ValueString() != "" {
 		body["networkVolumeId"] = config.NetworkVolumeId.ValueString()
 	}
@@ -829,11 +839,6 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	if !config.CloudType.IsNull() && config.CloudType.ValueString() != "" {
-		body["cloudType"] = config.CloudType.ValueString()
-	}
-
-	if !config.ContainerDiskInGb.IsNull() {
-		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
 
 	jsonBody, err := json.Marshal(body)
