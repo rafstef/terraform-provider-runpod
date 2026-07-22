@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -25,28 +24,26 @@ func actionConfig(t *testing.T, m PodActionModel) tfsdk.Config {
 	return tfsdk.Config{Schema: sch, Raw: st.Raw}
 }
 
-// TestPodActionCreate_SetsStatus is a regression test for bug CE-1652, fixed by PR #20.
-// Previously client.Query() returned the full envelope and Create double-unwrapped
-// (result["data"][...]), so even a valid GraphQL response failed with
-// "Failed to get data from response". PR #20 made Query() return the inner GraphQL
-// `data` object directly, so Create now reads result["podStop"] and sets Status.
-//
-// This asserts the FIXED behavior: a valid `podStop` response makes Create succeed
-// and populate Status from the mutation's `status` field.
+// TestPodActionCreate_SetsStatus tests that a valid REST response makes Create
+// succeed and populate Status from the response's status field.
 func TestPodActionCreate_SetsStatus(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"data":{"podStop":{"id":"p1","status":"STOPPED"}}}`))
+		_, _ = w.Write([]byte(`{"data":{"result":{"id":"p1","status":"STOPPED"}}}`))
 	}))
 	defer srv.Close()
-	t.Setenv("RUNPOD_API_KEY", "testkey123")
-	t.Setenv("RUNPOD_GRAPHQL_URL", srv.URL)
+
+	// Create resource and configure it with the test data
+	r := &PodActionResource{}
+	r.apiKey = "testkey123"
+	r.baseURL = srv.URL
+	r.httpClient = &http.Client{}
 
 	m := PodActionModel{
 		Action: types.StringValue("stop"),
 		PodId:  types.StringValue("p1"),
 	}
 	resp := &resource.CreateResponse{State: tfsdk.State{Schema: PodActionResourceSchema(context.Background())}}
-	(&PodActionResource{}).Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
+	r.Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
 
 	if resp.Diagnostics.HasError() {
 		t.Fatalf("expected CE-1652 fix: Create should succeed, got: %v", resp.Diagnostics)
@@ -61,21 +58,18 @@ func TestPodActionCreate_SetsStatus(t *testing.T) {
 	}
 }
 
-// TestPodActionCreate_SendsCorrectMutation covers the action→mutation routing
-// (the switch in Create) for all four actions, including resume/restart/
-// terminate. The request is built and sent before CE-1652's double-unwrap errors, so
-// we capture the request body and assert the right GraphQL mutation + podId went
-// on the wire. This is real, passing coverage of the routing (independent of the
-// CE-1652 response-handling bug, which still fails the Create afterward).
-func TestPodActionCreate_SendsCorrectMutation(t *testing.T) {
+// TestPodActionCreate_SendsCorrectRequest covers the action→REST routing
+// (the switch in Create) for all actions. We capture the request body and
+// assert the right action + podId went on the wire.
+func TestPodActionCreate_SendsCorrectRequest(t *testing.T) {
 	cases := []struct {
-		action   string
-		mutation string
+		action string
 	}{
-		{"stop", "podStop"},
-		{"resume", "podResume"},
-		{"restart", "podRestart"},
-		{"terminate", "podTerminate"},
+		{"stop"},
+		{"resume"},
+		{"restart"},
+		{"reset"},
+		{"terminate"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.action, func(t *testing.T) {
@@ -83,26 +77,26 @@ func TestPodActionCreate_SendsCorrectMutation(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				b, _ := io.ReadAll(r.Body)
 				_ = json.Unmarshal(b, &body)
-				_, _ = w.Write([]byte(`{"data":{}}`))
+				_, _ = w.Write([]byte(`{"data":{"result":{"status":"OK"}}}`))
 			}))
 			defer srv.Close()
-			t.Setenv("RUNPOD_API_KEY", "testkey123")
-			t.Setenv("RUNPOD_GRAPHQL_URL", srv.URL)
+
+			// Create resource and configure it with the test data
+			r := &PodActionResource{}
+			r.apiKey = "testkey123"
+			r.baseURL = srv.URL
+			r.httpClient = &http.Client{}
 
 			m := PodActionModel{
 				Action: types.StringValue(tc.action),
 				PodId:  types.StringValue("pod-xyz"),
 			}
 			resp := &resource.CreateResponse{State: tfsdk.State{Schema: PodActionResourceSchema(context.Background())}}
-			(&PodActionResource{}).Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
+			r.Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
 
-			q, _ := body["query"].(string)
-			if !strings.Contains(q, tc.mutation) {
-				t.Errorf("action %q: query did not contain mutation %q; got: %q", tc.action, tc.mutation, q)
-			}
-			vars, _ := body["variables"].(map[string]interface{})
-			if vars["podId"] != "pod-xyz" {
-				t.Errorf("action %q: variables.podId = %v, want pod-xyz", tc.action, vars["podId"])
+			// Check that the request body contains the correct action
+			if body["action"] != tc.action {
+				t.Errorf("action %q: body.action = %v, want %q", tc.action, body["action"], tc.action)
 			}
 		})
 	}
@@ -132,12 +126,17 @@ func TestPodActionReadUpdateDelete_NoOp(t *testing.T) {
 }
 
 func TestPodActionCreate_InvalidAction_Errors(t *testing.T) {
+	r := &PodActionResource{}
+	r.apiKey = "testkey123"
+	r.baseURL = "http://localhost:9999"
+	r.httpClient = &http.Client{}
+
 	m := PodActionModel{
 		Action: types.StringValue("explode"),
 		PodId:  types.StringValue("p1"),
 	}
 	resp := &resource.CreateResponse{State: tfsdk.State{Schema: PodActionResourceSchema(context.Background())}}
-	(&PodActionResource{}).Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
+	r.Create(context.Background(), resource.CreateRequest{Config: actionConfig(t, m)}, resp)
 
 	if !resp.Diagnostics.HasError() {
 		t.Fatal("expected an 'Invalid Action' error for an unknown action")

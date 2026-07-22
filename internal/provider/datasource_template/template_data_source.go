@@ -1,8 +1,12 @@
 package datasource_template
 
 import (
-	"os"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -34,7 +38,7 @@ func (d *TemplateDataSource) getClient() *client.RunPodClient {
 	}
 	baseURL := os.Getenv("RUNPOD_BASE_URL")
 	if baseURL == "" {
-		baseURL = "https://rest.runpod.io/v1"
+		baseURL = "https://api.runpod.io/v2"
 	}
 	d.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
 	return d.client
@@ -56,224 +60,261 @@ func (d *TemplateDataSource) Read(ctx context.Context, req datasource.ReadReques
 		return
 	}
 
-	query := `
-		query GetTemplate($templateId: String!) {
-			template(input: { templateId: $templateId }) {
-				id
-				name
-				imageName
-				category
-				containerDiskInGb
-				containerRegistryAuthId
-				dockerEntrypoint
-				dockerStartCmd
-				env
-				isPublic
-				isServerless
-				ports
-				readme
-				volumeInGb
-				volumeMountPath
-				earned
-				isRunpod
-				runtimeInMin
-			}
-		}
-	`
-
-	variables := map[string]interface{}{
-		"templateId": config.Id.ValueString(),
-	}
-
 	client := d.getClient()
-	result, err := client.Query(ctx, query, variables)
+
+	// Use v2 REST endpoint: GET /v2/templates/{templateId}
+	url := client.RestBaseURL + "/templates/" + config.Id.ValueString()
+
+	reqHTTP, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
-		resp.Diagnostics.AddError("API Error", err.Error())
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
 		return
 	}
 
- if template, ok := result["template"].(map[string]interface{}); ok {
-    envMap := make(map[string]attr.Value)
-    if val, ok := template["env"].(map[string]interface{}); ok {
-      for key, v := range val {
-        if strVal, ok := v.(string); ok {
-          envMap[key] = types.StringValue(strVal)
-        }
-      }
-    }
+	reqHTTP.Header.Set("Content-Type", "application/json")
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
 
-    dockerEntrypoint := make([]attr.Value, 0)
-    if val, ok := template["dockerEntrypoint"].([]interface{}); ok {
-      for _, v := range val {
-        if vStr, ok := v.(string); ok {
-          dockerEntrypoint = append(dockerEntrypoint, types.StringValue(vStr))
-        }
-      }
-    }
+	httpClient := &http.Client{}
+	respHTTP, err := httpClient.Do(reqHTTP)
+	if err != nil {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to make API call: %v", err))
+		return
+	}
+	defer respHTTP.Body.Close()
 
-    dockerStartCmd := make([]attr.Value, 0)
-    if val, ok := template["dockerStartCmd"].([]interface{}); ok {
-      for _, v := range val {
-        if vStr, ok := v.(string); ok {
-          dockerStartCmd = append(dockerStartCmd, types.StringValue(vStr))
-        }
-      }
-    }
+	// Handle 404 - template not found
+	if respHTTP.StatusCode == 404 {
+		resp.Diagnostics.AddError("API Error", "Template not found")
+		return
+	}
 
-    ports := make([]attr.Value, 0)
-    if val, ok := template["ports"].([]interface{}); ok {
-      for _, v := range val {
-        if vStr, ok := v.(string); ok {
-          ports = append(ports, types.StringValue(vStr))
-        }
-      }
-    }
+	// Read and parse response body
+	respBody, err := io.ReadAll(respHTTP.Body)
+	if err != nil {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to read response: %v", err))
+		return
+	}
 
-    var name, imageName, category, containerRegistryAuthId, readme, volumeMountPath string
-    var containerDiskInGb, volumeInGb, earned, runtimeInMin float64
-    var isPublic, isServerless, isRunpod bool
-    
-    if v, ok := template["name"].(string); ok {
-      name = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'name' is missing or not a string in template response")
-      return
-    }
-    
-    if v, ok := template["imageName"].(string); ok {
-      imageName = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'imageName' is missing or not a string in template response")
-      return
-    }
-    
-    if v, ok := template["category"].(string); ok {
-      category = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'category' is missing or not a string in template response")
-      return
-    }
-    
-    if v, ok := template["containerDiskInGb"].(float64); ok {
-      containerDiskInGb = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'containerDiskInGb' is missing or not a float64 in template response")
-      return
-    }
-    
-    if v, ok := template["containerRegistryAuthId"].(string); ok {
-      containerRegistryAuthId = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'containerRegistryAuthId' is missing or not a string in template response")
-      return
-    }
-    
-    if v, ok := template["isPublic"].(bool); ok {
-      isPublic = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'isPublic' is missing or not a bool in template response")
-      return
-    }
-    
-    if v, ok := template["isServerless"].(bool); ok {
-      isServerless = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'isServerless' is missing or not a bool in template response")
-      return
-    }
-    
-    if v, ok := template["readme"].(string); ok {
-      readme = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'readme' is missing or not a string in template response")
-      return
-    }
-    
-    if v, ok := template["volumeInGb"].(float64); ok {
-      volumeInGb = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'volumeInGb' is missing or not a float64 in template response")
-      return
-    }
-    
-    if v, ok := template["volumeMountPath"].(string); ok {
-      volumeMountPath = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'volumeMountPath' is missing or not a string in template response")
-      return
-    }
-    
-    if v, ok := template["earned"].(float64); ok {
-      earned = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'earned' is missing or not a float64 in template response")
-      return
-    }
-    
-    if v, ok := template["isRunpod"].(bool); ok {
-      isRunpod = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'isRunpod' is missing or not a bool in template response")
-      return
-    }
-    
-    if v, ok := template["runtimeInMin"].(float64); ok {
-      runtimeInMin = v
-    } else {
-      resp.Diagnostics.AddError("API Error", "Field 'runtimeInMin' is missing or not a float64 in template response")
-      return
-    }
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
+		return
+	}
 
-    dockerEntrypointList, diags := types.ListValue(types.StringType, dockerEntrypoint)
-    if diags.HasError() {
-      resp.Diagnostics.Append(diags...)
-      return
-    }
+	// Handle v2 response envelope: {data: {...}, meta: {...}, error: ...}
+	var result map[string]interface{}
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		// Check for nested template object (some endpoints wrap the response)
+		if template, ok := data["template"].(map[string]interface{}); ok {
+			result = template
+		} else {
+			result = data
+		}
+	} else {
+		result = envelope
+	}
 
-    dockerStartCmdList, diags := types.ListValue(types.StringType, dockerStartCmd)
-    if diags.HasError() {
-      resp.Diagnostics.Append(diags...)
-      return
-    }
+	if result == nil {
+		resp.Diagnostics.AddError("API Error", "Empty response from API")
+		return
+	}
 
-    envObj, diags := types.MapValue(types.StringType, envMap)
-    if diags.HasError() {
-      resp.Diagnostics.Append(diags...)
-      return
-    }
+	// Parse v2 REST response fields
+	// Map: templateId->id, name->name, imageName->image, isPublic->public, isServerless->serverless,
+	//      containerDiskInGb->disk, volumeInGb->volumeInGb, volumeMountPath->mountPath,
+	//      dockerArgs->args, dockerStartCmd->cmd, dockerEntrypoint->entrypoint, env->env,
+	//      createdBy->userId, createdAt->createdAt, gpuCount->gpuCount, gpuTypeId->gpuTypeId
 
-    portsList, diags := types.ListValue(types.StringType, ports)
-    if diags.HasError() {
-      resp.Diagnostics.Append(diags...)
-      return
-    }
+	var name, image, category, containerRegistryAuthId, readme, volumeMountPath string
+	var containerDiskInGb, volumeInGb, earned, runtimeInMin float64
+	var isPublic, isServerless, isRunpod bool
 
-    model := TemplateModel{
-      Id:                      config.Id,
-      Name:                    types.StringValue(name),
-      ImageName:               types.StringValue(imageName),
-      Category:                types.StringValue(category),
-      ContainerDiskInGb:       types.Int64Value(int64(containerDiskInGb)),
-      ContainerRegistryAuthId: types.StringValue(containerRegistryAuthId),
-      DockerEntrypoint:        dockerEntrypointList,
-      DockerStartCmd:          dockerStartCmdList,
-      Env:                     envObj,
-      IsPublic:                types.BoolValue(isPublic),
-      IsServerless:            types.BoolValue(isServerless),
-      Ports:                   portsList,
-      Readme:                  types.StringValue(readme),
-      VolumeInGb:              types.Int64Value(int64(volumeInGb)),
-      VolumeMountPath:         types.StringValue(volumeMountPath),
-      Earned:                  types.Float64Value(earned),
-      IsRunpod:                types.BoolValue(isRunpod),
-      RuntimeInMin:            types.Int64Value(int64(runtimeInMin)),
-    }
-    diags = resp.State.Set(ctx, &model)
-    if diags.HasError() {
-      resp.Diagnostics.Append(diags...)
-      return
-    }
-  } else {
-    resp.Diagnostics.AddError("API Error", "Template not found in response")
-  }
+	if v, ok := result["name"].(string); ok {
+		name = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'name' is missing or not a string in template response")
+		return
+	}
+
+	if v, ok := result["image"].(string); ok {
+		image = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'image' is missing or not a string in template response")
+		return
+	}
+
+	if v, ok := result["category"].(string); ok {
+		category = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'category' is missing or not a string in template response")
+		return
+	}
+
+	if v, ok := result["disk"].(float64); ok {
+		containerDiskInGb = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'disk' is missing or not a float64 in template response")
+		return
+	}
+
+	if v, ok := result["containerRegistryAuthId"].(string); ok {
+		containerRegistryAuthId = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'containerRegistryAuthId' is missing or not a string in template response")
+		return
+	}
+
+	if v, ok := result["public"].(bool); ok {
+		isPublic = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'public' is missing or not a bool in template response")
+		return
+	}
+
+	if v, ok := result["serverless"].(bool); ok {
+		isServerless = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'serverless' is missing or not a bool in template response")
+		return
+	}
+
+	if v, ok := result["readme"].(string); ok {
+		readme = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'readme' is missing or not a string in template response")
+		return
+	}
+
+	if v, ok := result["volumeInGb"].(float64); ok {
+		volumeInGb = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'volumeInGb' is missing or not a float64 in template response")
+		return
+	}
+
+	if v, ok := result["mountPath"].(string); ok {
+		volumeMountPath = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'mountPath' is missing or not a string in template response")
+		return
+	}
+
+	if v, ok := result["earned"].(float64); ok {
+		earned = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'earned' is missing or not a float64 in template response")
+		return
+	}
+
+	if v, ok := result["isRunpod"].(bool); ok {
+		isRunpod = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'isRunpod' is missing or not a bool in template response")
+		return
+	}
+
+	if v, ok := result["runtimeInMin"].(float64); ok {
+		runtimeInMin = v
+	} else {
+		resp.Diagnostics.AddError("API Error", "Field 'runtimeInMin' is missing or not a float64 in template response")
+		return
+	}
+
+	// Parse array fields
+	var dockerEntrypoint []attr.Value
+	if val, ok := result["entrypoint"].([]interface{}); ok {
+		for _, v := range val {
+			if vStr, ok := v.(string); ok {
+				dockerEntrypoint = append(dockerEntrypoint, types.StringValue(vStr))
+			}
+		}
+	}
+
+	var dockerStartCmd []attr.Value
+	if val, ok := result["cmd"].([]interface{}); ok {
+		for _, v := range val {
+			if vStr, ok := v.(string); ok {
+				dockerStartCmd = append(dockerStartCmd, types.StringValue(vStr))
+			}
+		}
+	}
+
+	var envMap map[string]attr.Value
+	if val, ok := result["env"].(map[string]interface{}); ok {
+		envMap = make(map[string]attr.Value)
+		for key, v := range val {
+			if strVal, ok := v.(string); ok {
+				envMap[key] = types.StringValue(strVal)
+			}
+		}
+	}
+
+	var ports []attr.Value
+	if val, ok := result["ports"].([]interface{}); ok {
+		for _, v := range val {
+			if vStr, ok := v.(string); ok {
+				ports = append(ports, types.StringValue(vStr))
+			}
+		}
+	}
+
+	// Build list and map values
+	dockerEntrypointList, diags := types.ListValue(types.StringType, dockerEntrypoint)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	dockerStartCmdList, diags := types.ListValue(types.StringType, dockerStartCmd)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	var envObj types.Map
+	if envMap != nil {
+		envObj, diags = types.MapValue(types.StringType, envMap)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
+		}
+	} else {
+		envObj, diags = types.MapValue(types.StringType, make(map[string]attr.Value))
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+			return
+		}
+	}
+
+	portsList, diags := types.ListValue(types.StringType, ports)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
+
+	model := TemplateModel{
+		Id:                      config.Id,
+		Name:                    types.StringValue(name),
+		ImageName:               types.StringValue(image),
+		Category:                types.StringValue(category),
+		ContainerDiskInGb:       types.Int64Value(int64(containerDiskInGb)),
+		ContainerRegistryAuthId: types.StringValue(containerRegistryAuthId),
+		DockerEntrypoint:        dockerEntrypointList,
+		DockerStartCmd:          dockerStartCmdList,
+		Env:                     envObj,
+		IsPublic:                types.BoolValue(isPublic),
+		IsServerless:            types.BoolValue(isServerless),
+		Ports:                   portsList,
+		Readme:                  types.StringValue(readme),
+		VolumeInGb:              types.Int64Value(int64(volumeInGb)),
+		VolumeMountPath:         types.StringValue(volumeMountPath),
+		Earned:                  types.Float64Value(earned),
+		IsRunpod:                types.BoolValue(isRunpod),
+		RuntimeInMin:            types.Int64Value(int64(runtimeInMin)),
+	}
+	diags = resp.State.Set(ctx, &model)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
+	}
 }

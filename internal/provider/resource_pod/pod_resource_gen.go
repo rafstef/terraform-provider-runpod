@@ -4,7 +4,6 @@ package resource_pod
 
 import (
 	"context"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64default"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -17,14 +16,20 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 			"bid_per_gpu": schema.Float64Attribute{
 				Optional:            true,
 				Computed:            true,
-				Description:         "Bid price per GPU for interruptible pods",
-				MarkdownDescription: "Bid price per GPU for interruptible pods",
+				Description:         "Bid price per GPU for interruptible pods - DEPRECATED: Use scheduling.bidPerGpu",
+				MarkdownDescription: "Bid price per GPU for interruptible pods - DEPRECATED: Use scheduling.bidPerGpu instead.",
 			},
-"cloud_type": schema.StringAttribute{
+			"type": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				Description:         "Cloud type: COMMUNITY, SECURE, or ALL",
-				MarkdownDescription: "Cloud type: COMMUNITY, SECURE, or ALL",
+				Description:         "Pod type: ON_DEMAND or SPOT (v2 required field)",
+				MarkdownDescription: "Pod type: ON_DEMAND or SPOT (v2 required field). Set to SPOT for interruptible pods.",
+			},
+			"cloud_type": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "Cloud type: COMMUNITY, SECURE, or ALL - DEPRECATED: Use scheduling.cloudType",
+				MarkdownDescription: "Cloud type: COMMUNITY, SECURE, or ALL - DEPRECATED: Use scheduling.cloudType instead.",
 			},
 			"cluster_ip": schema.StringAttribute{
 				Computed:            true,
@@ -57,8 +62,8 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 				ElementType:         types.StringType,
 				Optional:            true,
 				Computed:            true,
-				Description:         "Environment variables as ['KEY=VALUE', ...]",
-				MarkdownDescription: "Environment variables as ['KEY=VALUE', ...]",
+				Description:         "Environment variables as ['KEY=VALUE', ...] - DEPRECATED: Use container.env in v2",
+				MarkdownDescription: "Environment variables as ['KEY=VALUE', ...] - DEPRECATED: Use container.env in v2 format (array of `key=value` strings).",
 			},
 			"gpu_count": schema.Int64Attribute{
 				Optional:            true,
@@ -108,8 +113,8 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 			"port": schema.Int64Attribute{
 				Optional:            true,
 				Computed:            true,
-				Description:         "Main port for the pod",
-				MarkdownDescription: "Main port for the pod",
+				Description:         "Main port for the pod - DEPRECATED: Use ports array instead",
+				MarkdownDescription: "Main port for the pod - DEPRECATED: Use ports array instead (e.g., `ports = [\"8888/http\"]`).",
 			},
 			"ports": schema.StringAttribute{
 				Optional:            true,
@@ -120,16 +125,14 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 			"start_jupyter": schema.BoolAttribute{
 				Optional:            true,
 				Computed:            true,
-				Description:         "Start Jupyter notebook on boot",
-				MarkdownDescription: "Start Jupyter notebook on boot",
-				Default:             booldefault.StaticBool(false),
+				Description:         "Start Jupyter notebook on boot - DEPRECATED: Not supported in v2 API",
+				MarkdownDescription: "Start Jupyter notebook on boot - DEPRECATED: Not supported in v2 API. Start Jupyter manually inside the pod or use a custom Docker image that starts Jupyter automatically.",
 			},
 			"start_ssh": schema.BoolAttribute{
 				Optional:            true,
 				Computed:            true,
-				Description:         "Start SSH on boot",
-				MarkdownDescription: "Start SSH on boot",
-				Default:             booldefault.StaticBool(false),
+				Description:         "Start SSH on boot - DEPRECATED: Not supported in v2 API",
+				MarkdownDescription: "Start SSH on boot - DEPRECATED: Not supported in v2 API. Start SSH manually inside the pod or use a custom Docker image that starts SSH automatically.",
 			},
 			"status": schema.StringAttribute{
 				Computed:            true,
@@ -139,8 +142,8 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 			"stop_after": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				Description:         "Auto-stop timestamp (ISO 8601)",
-				MarkdownDescription: "Auto-stop timestamp (ISO 8601)",
+				Description:         "Auto-stop timestamp (ISO 8601) - DEPRECATED: Not supported in v2 API",
+				MarkdownDescription: "Auto-stop timestamp (ISO 8601) - DEPRECATED: Not supported in v2 API. Use `runpod_pod_action` with action `stop` to stop pods manually.",
 			},
 			"template_id": schema.StringAttribute{
 				Optional:            true,
@@ -151,8 +154,8 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 			"terminate_after": schema.StringAttribute{
 				Optional:            true,
 				Computed:            true,
-				Description:         "Auto-terminate timestamp (ISO 8601)",
-				MarkdownDescription: "Auto-terminate timestamp (ISO 8601)",
+				Description:         "Auto-terminate timestamp (ISO 8601) - DEPRECATED: Not supported in v2 API",
+				MarkdownDescription: "Auto-terminate timestamp (ISO 8601) - DEPRECATED: Not supported in v2 API. Use `runpod_pod_action` with action `terminate` to terminate pods manually.",
 			},
 			"vcpu_count": schema.Float64Attribute{
 				Computed:            true,
@@ -169,8 +172,8 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 				Optional:            true,
 				Computed:            true,
 				Sensitive:           true,
-				Description:         "Volume encryption key",
-				MarkdownDescription: "Volume encryption key",
+				Description:         "Volume encryption key - DEPRECATED: Not supported in v2 API",
+				MarkdownDescription: "Volume encryption key - DEPRECATED: Not supported in v2 API. Use `volume_encrypted` for basic encryption support.",
 			},
 			"volume_mount_path": schema.StringAttribute{
 				Optional:            true,
@@ -180,8 +183,14 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 			},
 			"network_volume_id": schema.StringAttribute{
 				Optional:            true,
-				Description:         "Network volume ID to attach to the pod",
-				MarkdownDescription: "Network volume ID to attach to the pod. When attached, the network volume replaces the pod volume.",
+				Description:         "Network volume ID to attach to the pod (deprecated, use network_volume_ids)",
+				MarkdownDescription: "Network volume ID to attach to the pod. When attached, the network volume replaces the pod volume. Deprecated: use network_volume_ids for multiple volumes.",
+			},
+			"network_volume_ids": schema.ListAttribute{
+				ElementType: types.StringType,
+				Optional:    true,
+				Description: "List of network volume IDs to attach to the pod",
+				MarkdownDescription: "List of network volume IDs to attach to the pod. Supports multiple network volumes.",
 			},
 			"docker_entrypoint": schema.ListAttribute{
 				ElementType:         types.StringType,
@@ -197,8 +206,8 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 			},
 			"interruptible": schema.BoolAttribute{
 				Optional:            true,
-				Description:         "Whether pod is interruptible",
-				MarkdownDescription: "Whether pod is interruptible",
+				Description:         "Whether pod is interruptible - DEPRECATED: Use `type` field instead",
+				MarkdownDescription: "Whether pod is interruptible - DEPRECATED: Use `type` field instead. Set `type = \"SPOT\"` for interruptible pods.",
 			},
 			"volume_encrypted": schema.BoolAttribute{
 				Optional:            true,
@@ -210,6 +219,7 @@ func PodResourceSchema(ctx context.Context) schema.Schema {
 }
 
 type PodModel struct {
+	Type              types.String  `tfsdk:"type"`  // v2 required field: ON_DEMAND or SPOT
 	BidPerGpu         types.Float64 `tfsdk:"bid_per_gpu"`
 	CloudType         types.String  `tfsdk:"cloud_type"`
 	ClusterIp         types.String  `tfsdk:"cluster_ip"`
@@ -239,6 +249,7 @@ type PodModel struct {
 	VolumeKey         types.String  `tfsdk:"volume_key"`
 	VolumeMountPath   types.String  `tfsdk:"volume_mount_path"`
   NetworkVolumeId   types.String  `tfsdk:"network_volume_id"`
+  NetworkVolumeIds  types.List    `tfsdk:"network_volume_ids"`
   DockerEntrypoint  types.List    `tfsdk:"docker_entrypoint"`
   DockerStartCmd    types.List    `tfsdk:"docker_start_cmd"`
   Interruptible     types.Bool    `tfsdk:"interruptible"`

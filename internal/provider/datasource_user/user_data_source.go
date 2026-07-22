@@ -48,51 +48,92 @@ func (d *UserDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 }
 
 func (d *UserDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	query := `
-		query GetUser {
-			myself {
-				id
-				pubKey
-			}
-		}
-	`
-
-	variables := map[string]interface{}{}
-
 	client := d.getClient()
-	result, err := client.Query(ctx, query, variables)
+	result, err := client.RestQuery(ctx, "GET", "user", nil)
 	if err != nil {
 		resp.Diagnostics.AddError("API Error", err.Error())
 		return
 	}
 
-	if user, ok := result["myself"].(map[string]interface{}); ok {
-		var idVal, pubKeyVal string
-		
-		if id, ok := user["id"].(string); ok {
-			idVal = id
-		} else {
-			resp.Diagnostics.AddError("API Error", "Field 'id' is missing or not a string in user response")
-			return
-		}
-		
-		if pubKey, ok := user["pubKey"].(string); ok {
-			pubKeyVal = pubKey
-		} else {
-			resp.Diagnostics.AddError("API Error", "Field 'pubKey' is missing or not a string in user response")
-			return
-		}
-		
-		model := UserModel{
-			Id:     types.StringValue(idVal),
-			PubKey: types.StringValue(pubKeyVal),
-		}
-		diags := resp.State.Set(ctx, &model)
-		if diags.HasError() {
-			resp.Diagnostics.Append(diags...)
-			return
-		}
+	var idVal, nameVal, emailVal, pubKeyVal, cloudTypeStr string
+	var verifiedVal bool
+	var gpuLimitVal, gpuUsageVal, storageLimitVal, storageUsageVal float64
+
+	// Parse v2 REST response (RestQuery already unwraps the {data: {...}} envelope)
+	// Fields are now directly accessible from result
+	// Parse id
+	if id, ok := result["id"].(string); ok {
+		idVal = id
 	} else {
-		resp.Diagnostics.AddError("API Error", "User not found in response")
+		resp.Diagnostics.AddError("API Error", "Field 'id' is missing or not a string in user response")
+		return
+	}
+
+	// Parse name (optional)
+	if name, ok := result["name"].(string); ok {
+		nameVal = name
+	}
+
+	// Parse email (optional)
+	if email, ok := result["email"].(string); ok {
+		emailVal = email
+	}
+
+	// Parse pubKey (optional)
+	if pubKey, ok := result["pubKey"].(string); ok {
+		pubKeyVal = pubKey
+	}
+
+	// Parse verified (optional)
+	if verified, ok := result["verified"].(bool); ok {
+		verifiedVal = verified
+	}
+
+	// Parse cloudType (optional)
+	if cloudType, ok := result["cloudType"].(string); ok {
+		cloudTypeStr = cloudType
+	}
+
+	// Parse gpuLimit (optional)
+	if gpuLimit, ok := result["gpuLimit"].(float64); ok {
+		gpuLimitVal = gpuLimit
+	}
+
+	// Parse gpuUsage (optional)
+	if gpuUsage, ok := result["gpuUsage"].(float64); ok {
+		gpuUsageVal = gpuUsage
+	}
+
+	// Parse storageLimit (optional)
+	if storageLimit, ok := result["storageLimit"].(float64); ok {
+		storageLimitVal = storageLimit
+	}
+
+	// Parse storageUsage (optional)
+	if storageUsage, ok := result["storageUsage"].(float64); ok {
+		storageUsageVal = storageUsage
+	}
+
+		// Map fields to model
+		// id → id
+		// pubKey → pub_key (for backward compatibility)
+		// name, email, verified, cloudType, gpuLimit, gpuUsage, storageLimit, storageUsage
+
+		model := UserModel{
+			Id:           types.StringValue(idVal),
+			Name:         types.StringValue(nameVal),
+			Email:        types.StringValue(emailVal),
+			PubKey:       types.StringValue(pubKeyVal),
+			Verified:     types.BoolValue(verifiedVal),
+			CloudType:    types.StringValue(cloudTypeStr),
+			GpuLimit:     types.Float64Value(gpuLimitVal),
+			GpuUsage:     types.Float64Value(gpuUsageVal),
+			StorageLimit: types.Float64Value(storageLimitVal),
+			StorageUsage: types.Float64Value(storageUsageVal),
+		}
+	diags := resp.State.Set(ctx, &model)
+	if diags.HasError() {
+		resp.Diagnostics.Append(diags...)
+		return
 	}
 }

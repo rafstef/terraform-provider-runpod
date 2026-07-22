@@ -39,12 +39,19 @@ func TestPodResource_MetadataAndSchema(t *testing.T) {
 func TestPodRead_FullFieldMapping(t *testing.T) {
 	ctx := context.Background()
 	sch := PodResourceSchema(ctx)
+	// v2 envelope format
 	body := `{
-		"id":"pod-1","status":"RUNNING","gpuTypeId":"NVIDIA A100","machineId":"m-1",
-		"costPerHr":1.5,"created_at":"2024-01-01T00:00:00Z","memoryInGb":16,
-		"volumeInGb":50,"containerDiskInGb":20,"templateId":"t-1","cloudType":"SECURE",
-		"networkVolume":{"id":"nv-1"},"dockerEntrypoint":["/bin/sh"],
-		"dockerStartCmd":["run"],"interruptible":true,"volumeEncrypted":true
+		"data": {
+			"pod": {
+				"id":"pod-1","status":"RUNNING","gpuTypeId":"NVIDIA A100","machineId":"m-1",
+				"costPerHr":1.5,"created_at":"2024-01-01T00:00:00Z","memoryInGb":16,
+				"volumeInGb":50,"containerDiskInGb":20,"templateId":"t-1","cloudType":"SECURE",
+				"networkVolume":{"id":"nv-1"},"dockerEntrypoint":["/bin/sh"],
+				"dockerStartCmd":["run"],"interruptible":true,"volumeEncrypted":true,"type":"ON_DEMAND"
+			}
+		},
+		"meta": {"requestId":"test"},
+		"error": null
 	}`
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(body))
@@ -53,7 +60,7 @@ func TestPodRead_FullFieldMapping(t *testing.T) {
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
 	t.Setenv("RUNPOD_BASE_URL", srv.URL)
 
-	m := baseModel()
+	m := baseModelWithListTypes()
 	m.Id = types.StringValue("pod-1")
 	resp := &resource.ReadResponse{State: tfsdk.State{Schema: sch}}
 	(&PodResource{}).Read(ctx, resource.ReadRequest{State: podState(t, m)}, resp)
@@ -92,14 +99,14 @@ func TestPodUpdate_ManyFieldsInBody(t *testing.T) {
 	ctx := context.Background()
 	sch := PodResourceSchema(ctx)
 
-	prior := baseModel()
+	prior := baseModelWithListTypes()
 	prior.Id = types.StringValue("pod-1")
 	prior.Name = types.StringValue("old")
 	prior.VolumeInGb = types.Float64Value(40)
 	prior.VolumeMountPath = types.StringValue("/old")
 	prior.ContainerDiskInGb = types.Int64Value(20)
 
-	desired := baseModel()
+	desired := baseModelWithListTypes()
 	desired.Id = types.StringValue("pod-1")
 	desired.Name = types.StringValue("new")
 	desired.VolumeInGb = types.Float64Value(50)
@@ -117,7 +124,8 @@ func TestPodUpdate_ManyFieldsInBody(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(b, &body)
-		_, _ = w.Write([]byte(`{"id":"pod-1"}`))
+		// v2 envelope format for response
+		_, _ = w.Write([]byte(`{"data":{"pod":{"id":"pod-1"}},"meta":{"requestId":"test"},"error":null}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")

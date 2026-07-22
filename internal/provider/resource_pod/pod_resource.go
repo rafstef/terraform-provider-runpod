@@ -95,7 +95,6 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	// Use REST API endpoint
 	var apiKey string
 	var endpoint string
 	
@@ -111,42 +110,111 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 	}
 	
 	if apiKey == "" {
-		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set. Get your API key from https://runpod.io/console/user/settings")
+		resp.Diagnostics.AddError("API Error", "RUNPOD_API_KEY environment variable must be set")
 		return
 	}
 
 	url := endpoint + "/pods"
 
-	// Build the REST API request body
-	body := map[string]interface{}{
-		"gpuCount": int64(config.GpuCount.ValueInt64()),
-		"name":     config.Name.ValueString(),
+	body := map[string]interface{}{}
+
+	if !config.Name.IsNull() && config.Name.ValueString() != "" {
+		body["name"] = config.Name.ValueString()
 	}
 
 	if hasTemplateId {
 		body["templateId"] = config.TemplateId.ValueString()
-	} else {
-		body["imageName"] = config.ImageName.ValueString()
+	} else if hasImageName {
+		body["image"] = config.ImageName.ValueString()
+	}
+
+	if !config.GpuCount.IsNull() && config.GpuCount.ValueInt64() > 0 {
+		if _, ok := body["gpu"]; !ok {
+			body["gpu"] = make(map[string]interface{})
+		}
+		gpuObj := body["gpu"].(map[string]interface{})
+		gpuObj["count"] = int64(config.GpuCount.ValueInt64())
+	}
+
+	if !config.GpuTypeId.IsNull() && config.GpuTypeId.ValueString() != "" {
+		if _, ok := body["gpu"]; !ok {
+			body["gpu"] = make(map[string]interface{})
+		}
+		gpuObj := body["gpu"].(map[string]interface{})
+		gpuObj["id"] = config.GpuTypeId.ValueString()
 	}
 
 	if !config.CloudType.IsNull() && config.CloudType.ValueString() != "" {
-		body["cloudType"] = config.CloudType.ValueString()
+		body["cloud"] = config.CloudType.ValueString()
 	}
 
-	if config.VolumeInGb.ValueFloat64() > 0 {
-		body["volumeInGb"] = int64(config.VolumeInGb.ValueFloat64())
+	if !config.BidPerGpu.IsNull() && config.BidPerGpu.ValueFloat64() > 0 {
+		body["bidPerGpu"] = config.BidPerGpu.ValueFloat64()
 	}
 
-	if !config.NetworkVolumeId.IsNull() && config.NetworkVolumeId.ValueString() != "" {
-		body["networkVolumeId"] = config.NetworkVolumeId.ValueString()
+	if config.VolumeInGb.ValueFloat64() > 0 || !config.NetworkVolumeId.IsNull() || !config.VolumeMountPath.IsNull() {
+		if _, ok := body["mounts"]; !ok {
+			body["mounts"] = make([]map[string]interface{}, 0)
+		}
+		mounts := body["mounts"].([]map[string]interface{})
+		
+		if config.VolumeInGb.ValueFloat64() > 0 {
+			mount := map[string]interface{}{
+				"volumeInGb": int64(config.VolumeInGb.ValueFloat64()),
+			}
+			if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
+				mount["volumeMountPath"] = config.VolumeMountPath.ValueString()
+			}
+			if !config.VolumeEncrypted.IsNull() {
+				mount["volumeEncrypted"] = config.VolumeEncrypted.ValueBool()
+			}
+			mounts = append(mounts, mount)
+		}
+
+		if !config.NetworkVolumeId.IsNull() && config.NetworkVolumeId.ValueString() != "" {
+			mount := map[string]interface{}{
+				"networkVolumeId": config.NetworkVolumeId.ValueString(),
+			}
+			if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
+				mount["volumeMountPath"] = config.VolumeMountPath.ValueString()
+			}
+			mounts = append(mounts, mount)
+		}
+
+		if !config.NetworkVolumeIds.IsNull() && len(config.NetworkVolumeIds.Elements()) > 0 {
+			for _, id := range config.NetworkVolumeIds.Elements() {
+				if strVal, ok := id.(types.String); ok {
+					mount := map[string]interface{}{
+						"networkVolumeId": strVal.ValueString(),
+					}
+					if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
+						mount["volumeMountPath"] = config.VolumeMountPath.ValueString()
+					}
+					mounts = append(mounts, mount)
+				}
+			}
+		}
+		
+		body["mounts"] = mounts
 	}
 
-	if !config.ContainerDiskInGb.IsNull() {
-		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
+	if !config.ContainerDiskInGb.IsNull() && config.ContainerDiskInGb.ValueInt64() > 0 {
+		body["disk"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
 
-	if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
-		body["volumeMountPath"] = config.VolumeMountPath.ValueString()
+	if !config.Ports.IsNull() && config.Ports.ValueString() != "" {
+		portsArray := make([]string, 0)
+		portsStr := config.Ports.ValueString()
+		ports := strings.Split(portsStr, ",")
+		for _, p := range ports {
+			trimmed := strings.TrimSpace(p)
+			if trimmed != "" {
+				portsArray = append(portsArray, trimmed)
+			}
+		}
+		if len(portsArray) > 0 {
+			body["ports"] = portsArray
+		}
 	}
 
 	if !config.Env.IsNull() && len(config.Env.Elements()) > 0 {
@@ -162,6 +230,14 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		if len(envMap) > 0 {
 			body["env"] = envMap
 		}
+	}
+
+	if !config.StartSsh.IsNull() {
+		body["startSsh"] = config.StartSsh.ValueBool()
+	}
+
+	if !config.StartJupyter.IsNull() {
+		body["startJupyter"] = config.StartJupyter.ValueBool()
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -193,14 +269,26 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	// Parse the response
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
 	}
 
-	// Extract the pod ID from response
+	var result map[string]interface{}
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		if pod, ok := data["pod"].(map[string]interface{}); ok {
+			result = pod
+		} else if pods, ok := data["pods"].([]interface{}); ok && len(pods) > 0 {
+			result = pods[0].(map[string]interface{})
+		} else {
+			resp.Diagnostics.AddError("API Error", "Failed to extract pod from response data")
+			return
+		}
+	} else {
+		result = envelope
+	}
+
 	if podID, ok := result["id"].(string); ok {
 		config.Id = types.StringValue(podID)
 	} else {
@@ -208,14 +296,135 @@ func (r *PodResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	if config.StartSsh.IsNull() {
-		config.StartSsh = types.BoolValue(false)
-	}
-	if config.StartJupyter.IsNull() {
-		config.StartJupyter = types.BoolValue(false)
+	if podType, ok := result["type"].(string); ok {
+		config.Type = types.StringValue(podType)
+	} else {
+		config.Type = types.StringValue("")
 	}
 
-	// Set the state
+	if val, ok := result["desiredStatus"].(string); ok && val != "" {
+		config.Status = types.StringValue(val)
+	}
+
+	if val, ok := result["createdAt"].(string); ok && val != "" {
+		config.CreatedAt = types.StringValue(val)
+	}
+
+	if val, ok := result["machineId"].(string); ok && val != "" {
+		config.MachineId = types.StringValue(val)
+	}
+
+	if val, ok := result["costPerHr"].(float64); ok {
+		config.CostPerHr = types.Float64Value(val)
+	}
+
+	if val, ok := result["memoryInGb"].(float64); ok {
+		config.MemoryInGb = types.Float64Value(val)
+	}
+
+	if val, ok := result["volumeInGb"].(float64); ok {
+		config.VolumeInGb = types.Float64Value(val)
+	}
+
+	if val, ok := result["containerDiskInGb"].(float64); ok {
+		config.ContainerDiskInGb = types.Int64Value(int64(val))
+	}
+
+	if result["templateId"] != nil {
+		if val, ok := result["templateId"].(string); ok && val != "" {
+			config.TemplateId = types.StringValue(val)
+		}
+	}
+
+	if machine, ok := result["machine"].(map[string]interface{}); ok {
+		if val, ok := machine["gpuTypeId"].(string); ok && val != "" {
+			config.GpuTypeId = types.StringValue(val)
+		}
+		if v, ok := machine["secureCloud"].(bool); ok {
+			if v {
+				config.CloudType = types.StringValue("SECURE")
+			} else {
+				config.CloudType = types.StringValue("COMMUNITY")
+			}
+		}
+	}
+
+	if result["cloudType"] != nil {
+		if val, ok := result["cloudType"].(string); ok && val != "" {
+			config.CloudType = types.StringValue(val)
+		}
+	}
+
+	if result["networkVolume"] != nil {
+		if nv, ok := result["networkVolume"].(map[string]interface{}); ok {
+			if id, ok := nv["id"].(string); ok && id != "" {
+				config.NetworkVolumeId = types.StringValue(id)
+			}
+		}
+	}
+
+	if result["networkVolumeIds"] != nil {
+		if nvIds, ok := result["networkVolumeIds"].([]interface{}); ok {
+			nvIdList := make([]attr.Value, 0)
+			for _, nv := range nvIds {
+				if nvMap, ok := nv.(map[string]interface{}); ok {
+					if id, ok := nvMap["id"].(string); ok && id != "" {
+						nvIdList = append(nvIdList, types.StringValue(id))
+					}
+				} else if idStr, ok := nv.(string); ok && idStr != "" {
+					nvIdList = append(nvIdList, types.StringValue(idStr))
+				}
+			}
+			if len(nvIdList) > 0 {
+				config.NetworkVolumeIds, diags = types.ListValue(types.StringType, nvIdList)
+				if diags.HasError() {
+					resp.Diagnostics.Append(diags...)
+					return
+				}
+			}
+		}
+	}
+
+	if val, ok := result["dockerEntrypoint"].([]interface{}); ok {
+		entrypointList := make([]attr.Value, 0)
+		for _, v := range val {
+			if vStr, ok := v.(string); ok {
+				entrypointList = append(entrypointList, types.StringValue(vStr))
+			}
+		}
+		if len(entrypointList) > 0 {
+			config.DockerEntrypoint, diags = types.ListValue(types.StringType, entrypointList)
+			if diags.HasError() {
+				resp.Diagnostics.Append(diags...)
+				return
+			}
+		}
+	}
+
+	if val, ok := result["dockerStartCmd"].([]interface{}); ok {
+		startCmdList := make([]attr.Value, 0)
+		for _, v := range val {
+			if vStr, ok := v.(string); ok {
+				startCmdList = append(startCmdList, types.StringValue(vStr))
+			}
+		}
+		if len(startCmdList) > 0 {
+			config.DockerStartCmd, diags = types.ListValue(types.StringType, startCmdList)
+			if diags.HasError() {
+				resp.Diagnostics.Append(diags...)
+				return
+			}
+		}
+	}
+
+	if val, ok := result["interruptible"].(bool); ok {
+		config.Interruptible = types.BoolValue(val)
+	}
+
+	if val, ok := result["volumeEncrypted"].(bool); ok {
+		config.VolumeEncrypted = types.BoolValue(val)
+	}
+
 	diags = resp.State.Set(ctx, &config)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
@@ -280,15 +489,31 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
+	}
+
+	var result map[string]interface{}
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		if pod, ok := data["pod"].(map[string]interface{}); ok {
+			result = pod
+		} else {
+			resp.Diagnostics.AddError("API Error", "Failed to extract pod from v2 response data")
+			return
+		}
+	} else {
+		result = envelope
 	}
 
 	if result == nil {
 		resp.Diagnostics.AddError("API Error", "Empty response from API")
 		return
+	}
+
+	if podType, ok := result["type"].(string); ok {
+		state.Type = types.StringValue(podType)
 	}
 
 	if val, ok := result["desiredStatus"].(string); ok && val != "" {
@@ -342,6 +567,28 @@ func (r *PodResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		if nv, ok := result["networkVolume"].(map[string]interface{}); ok {
 			if id, ok := nv["id"].(string); ok && id != "" {
 				state.NetworkVolumeId = types.StringValue(id)
+			}
+		}
+	}
+
+	if result["networkVolumeIds"] != nil {
+		if nvIds, ok := result["networkVolumeIds"].([]interface{}); ok {
+			nvIdList := make([]attr.Value, 0)
+			for _, nv := range nvIds {
+				if nvMap, ok := nv.(map[string]interface{}); ok {
+					if id, ok := nvMap["id"].(string); ok && id != "" {
+						nvIdList = append(nvIdList, types.StringValue(id))
+					}
+				} else if idStr, ok := nv.(string); ok && idStr != "" {
+					nvIdList = append(nvIdList, types.StringValue(idStr))
+				}
+			}
+			if len(nvIdList) > 0 {
+				state.NetworkVolumeIds, diags = types.ListValue(types.StringType, nvIdList)
+				if diags.HasError() {
+					resp.Diagnostics.Append(diags...)
+					return
+				}
 			}
 		}
 	}
@@ -474,6 +721,18 @@ func (r *PodResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		body["volumeMountPath"] = config.VolumeMountPath.ValueString()
 	}
 
+	if !config.NetworkVolumeIds.IsNull() && len(config.NetworkVolumeIds.Elements()) > 0 {
+		networkVolumeIds := make([]string, 0)
+		for _, id := range config.NetworkVolumeIds.Elements() {
+			if strVal, ok := id.(types.String); ok {
+				networkVolumeIds = append(networkVolumeIds, strVal.ValueString())
+			}
+		}
+		if len(networkVolumeIds) > 0 {
+			body["networkVolumeIds"] = networkVolumeIds
+		}
+	}
+
 	if !config.ContainerDiskInGb.IsNull() && config.ContainerDiskInGb.ValueInt64() != state.ContainerDiskInGb.ValueInt64() {
 		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
@@ -515,10 +774,22 @@ func (r *PodResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		return
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
+	}
+
+	var result map[string]interface{}
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		if pod, ok := data["pod"].(map[string]interface{}); ok {
+			result = pod
+		} else {
+			resp.Diagnostics.AddError("API Error", "Failed to extract pod from v2 response data")
+			return
+		}
+	} else {
+		result = envelope
 	}
 
 	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {

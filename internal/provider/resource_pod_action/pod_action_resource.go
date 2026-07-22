@@ -1,11 +1,19 @@
 package resource_pod_action
 
 import (
-	"os"
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/runpod/terraform-provider-runpod/internal/provider/client"
+
+	client "github.com/runpod/terraform-provider-runpod/internal/provider/client"
 )
 
 func NewPodActionResource() resource.Resource {
@@ -13,30 +21,35 @@ func NewPodActionResource() resource.Resource {
 }
 
 type PodActionResource struct {
-	client *client.RunPodClient
+	apiKey   string
+	baseURL  string
+	httpClient *http.Client
 }
 
 func (r *PodActionResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData != nil {
-		r.client = req.ProviderData.(*client.RunPodClient)
+		// Provider stores the client wrapper for pod_action (REST only)
+		if clientWrapper, ok := req.ProviderData.(*client.RunPodClientWrapper); ok {
+			r.apiKey = clientWrapper.APIKey
+			r.baseURL = clientWrapper.RestBaseURL
+		}
 	}
-}
-
-func (r *PodActionResource) getClient() *client.RunPodClient {
-	if r.client != nil {
-		return r.client
+	
+	// Fallback to environment variables
+	if r.apiKey == "" {
+		r.apiKey = os.Getenv("RUNPOD_API_KEY")
 	}
-	apiKey := os.Getenv("RUNPOD_API_KEY")
-	endpoint := os.Getenv("RUNPOD_GRAPHQL_URL")
-	if endpoint == "" {
-		endpoint = "https://api.runpod.io/graphql"
+	if r.baseURL == "" {
+		r.baseURL = os.Getenv("RUNPOD_BASE_URL")
 	}
-	baseURL := os.Getenv("RUNPOD_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://rest.runpod.io/v1"
+	if r.baseURL == "" {
+		r.baseURL = "https://api.runpod.io/v2"
 	}
-	r.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
-	return r.client
+	
+	// Initialize httpClient if not already set
+	if r.httpClient == nil {
+		r.httpClient = &http.Client{}
+	}
 }
 
 func (r *PodActionResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -55,105 +68,104 @@ func (r *PodActionResource) Create(ctx context.Context, req resource.CreateReque
 		return
 	}
 
-	var query string
 	action := config.Action.ValueString()
+	podID := config.PodId.ValueString()
 
-	switch action {
-	case "stop":
-		query = `
-			mutation StopPod($podId: String!) {
-				podStop(podId: $podId) {
-					id
-					status
-				}
-			}
-		`
-	case "resume":
-		query = `
-			mutation ResumePod($podId: String!) {
-				podResume(podId: $podId) {
-					id
-					status
-				}
-			}
-		`
-	case "restart":
-		query = `
-			mutation RestartPod($podId: String!) {
-				podRestart(podId: $podId) {
-					id
-					status
-				}
-			}
-		`
-	case "reset":
-		query = `
-			mutation ResetPod($podId: String!) {
-				podReset(podId: $podId) {
-					id
-					status
-				}
-			}
-		`
-	case "terminate":
-		query = `
-			mutation TerminatePod($podId: String!) {
-				podTerminate(podId: $podId) {
-					id
-					status
-				}
-			}
-		`
-	default:
+	// Validate action
+	validActions := map[string]bool{
+		"stop": true, "resume": true, "restart": true, "reset": true, "terminate": true,
+	}
+	if !validActions[action] {
 		resp.Diagnostics.AddError("Invalid Action", "Action must be one of: stop, resume, restart, reset, terminate")
 		return
 	}
 
-variables := map[string]interface{}{
-			"podId": config.PodId.ValueString(),
-		}
+	// Build REST API URL for pod actions
+	url := strings.TrimSuffix(r.baseURL, "/") + "/pods/" + podID + "/actions"
 
-	client := r.getClient()
-	result, err := client.Query(ctx, query, variables)
+	// Build request body with action
+	body := map[string]interface{}{
+		"action": action,
+	}
+
+	jsonBody, err := json.Marshal(body)
 	if err != nil {
-		resp.Diagnostics.AddError("API Error", err.Error())
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to marshal request body: %v", err))
 		return
 	}
 
+	// Create HTTP request
+	reqHTTP, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
+		return
+	}
+
+	reqHTTP.Header.Set("Content-Type", "application/json")
+	reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.apiKey))
+
+	// Initialize httpClient if not already set (for tests that don't call Configure)
+	if r.httpClient == nil {
+		r.httpClient = &http.Client{}
+	}
+
+	// Execute request
+	respHTTP, err := r.httpClient.Do(reqHTTP)
+	if err != nil {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to make API call: %v", err))
+		return
+	}
+	defer respHTTP.Body.Close()
+
+	// Read response
+	respBody, err := io.ReadAll(respHTTP.Body)
+	if err != nil {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to read response: %v", err))
+		return
+	}
+
+	// Parse response
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
+		return
+	}
+
+	// Extract status from response
 	var status string
-	switch action {
-	case "stop":
-		if podStop, ok := result["podStop"].(map[string]interface{}); ok {
-			if podStatus, ok := podStop["status"].(string); ok {
-				status = podStatus
-			}
-		}
-	case "resume":
-		if podResume, ok := result["podResume"].(map[string]interface{}); ok {
-			if podStatus, ok := podResume["status"].(string); ok {
-				status = podStatus
-			}
-		}
-	case "restart":
-		if podRestart, ok := result["podRestart"].(map[string]interface{}); ok {
-			if podStatus, ok := podRestart["status"].(string); ok {
-				status = podStatus
-			}
-		}
-	case "reset":
-		if podReset, ok := result["podReset"].(map[string]interface{}); ok {
-			if podStatus, ok := podReset["status"].(string); ok {
-				status = podStatus
-			}
-		}
-	case "terminate":
-		if podTerminate, ok := result["podTerminate"].(map[string]interface{}); ok {
-			if podStatus, ok := podTerminate["status"].(string); ok {
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		if result, ok := data["result"].(map[string]interface{}); ok {
+			if podStatus, ok := result["status"].(string); ok {
 				status = podStatus
 			}
 		}
 	}
 
+	// If status not found in result, try direct status field
+	if status == "" {
+		if statusField, ok := envelope["status"].(string); ok {
+			status = statusField
+		}
+	}
+
+	// If still not found, try data field
+	if status == "" {
+		if data, ok := envelope["data"].(map[string]interface{}); ok {
+			if podStatus, ok := data["status"].(string); ok {
+				status = podStatus
+			}
+		}
+	}
+
+	// Try to extract from v2 response format
+	if result, ok := envelope["result"].(map[string]interface{}); ok {
+		if podStatus, ok := result["status"].(string); ok {
+			status = podStatus
+		}
+	}
+
+	// If status is still empty, set it to empty string (not an error)
+	// This allows the response to succeed but with empty status
 	config.Status = types.StringValue(status)
 
 	diags = resp.State.Set(ctx, &config)
@@ -164,10 +176,13 @@ variables := map[string]interface{}{
 }
 
 func (r *PodActionResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
+	// pod_action is create-only, no Read needed
 }
 
 func (r *PodActionResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	// pod_action is create-only, no Update needed
 }
 
 func (r *PodActionResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	// pod_action is create-only, no Delete needed
 }

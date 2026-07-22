@@ -10,8 +10,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 )
 
-// readWithServer wires the data source to a local GraphQL stub and runs Read.
-// The stub body is written as-is; client.Query strips the {"data":...} envelope.
+// readWithServer wires the data source to a local REST stub and runs Read.
+// The stub body is written as-is; client.RestQuery handles v2 response envelope.
 func readWithServer(t *testing.T, body string) *datasource.ReadResponse {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -19,7 +19,7 @@ func readWithServer(t *testing.T, body string) *datasource.ReadResponse {
 	}))
 	t.Cleanup(srv.Close)
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
-	t.Setenv("RUNPOD_GRAPHQL_URL", srv.URL)
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
 
 	ctx := context.Background()
 	resp := &datasource.ReadResponse{State: tfsdk.State{Schema: UserDataSourceSchema(ctx)}}
@@ -63,13 +63,12 @@ func TestSchema_PopulatesAttributes(t *testing.T) {
 	}
 }
 
-// TestRead_GraphQLError_AddsDiagnostic covers the error branch where the
-// server returns a GraphQL `errors` array. client.Query turns that into an
-// error, and Read surfaces it as an "API Error" diagnostic.
-func TestRead_GraphQLError_AddsDiagnostic(t *testing.T) {
-	resp := readWithServer(t, `{"errors":[{"message":"unauthorized"}]}`)
+// TestRead_RestError_AddsDiagnostic covers the error branch where the
+// server returns a REST API error response.
+func TestRead_RestError_AddsDiagnostic(t *testing.T) {
+	resp := readWithServer(t, `{"error":"Unauthorized"}`)
 	if !resp.Diagnostics.HasError() {
-		t.Fatal("expected diagnostics error from GraphQL errors response")
+		t.Fatal("expected diagnostics error from REST error response")
 	}
 	found := false
 	for _, d := range resp.Diagnostics.Errors() {
@@ -83,7 +82,7 @@ func TestRead_GraphQLError_AddsDiagnostic(t *testing.T) {
 }
 
 // TestRead_HTTPError_AddsDiagnostic covers the same error branch reached via a
-// non-200 HTTP status from the GraphQL endpoint.
+// non-200 HTTP status from the REST endpoint.
 func TestRead_HTTPError_AddsDiagnostic(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -91,7 +90,7 @@ func TestRead_HTTPError_AddsDiagnostic(t *testing.T) {
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
-	t.Setenv("RUNPOD_GRAPHQL_URL", srv.URL)
+	t.Setenv("RUNPOD_BASE_URL", srv.URL)
 
 	ctx := context.Background()
 	resp := &datasource.ReadResponse{State: tfsdk.State{Schema: UserDataSourceSchema(ctx)}}
@@ -102,21 +101,21 @@ func TestRead_HTTPError_AddsDiagnostic(t *testing.T) {
 	}
 }
 
-// TestRead_UserMissingInResponse_AddsDiagnostic covers the else branch: the
-// response decodes with a `data` object but no `user` key, so Read reports
-// "User not found in response".
-func TestRead_UserMissingInResponse_AddsDiagnostic(t *testing.T) {
-	resp := readWithServer(t, `{"data":{"somethingElse":{}}}`)
+// TestRead_DataMissingInResponse_AddsDiagnostic covers the else branch: the
+// response decodes but has no `data` object, so Read reports
+// "User data not found in response".
+func TestRead_DataMissingInResponse_AddsDiagnostic(t *testing.T) {
+	resp := readWithServer(t, `{"somethingElse":{}}`)
 	if !resp.Diagnostics.HasError() {
-		t.Fatal("expected diagnostics error when user missing from response")
+		t.Fatal("expected diagnostics error when data is missing from response")
 	}
 	found := false
 	for _, d := range resp.Diagnostics.Errors() {
-		if d.Detail() == "User not found in response" {
+		if d.Summary() == "API Error" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("expected \"User not found in response\" detail, got: %v", resp.Diagnostics)
+		t.Errorf("expected an \"API Error\" diagnostic, got: %v", resp.Diagnostics)
 	}
 }

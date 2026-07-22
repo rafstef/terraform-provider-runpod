@@ -17,8 +17,11 @@ import (
 	resource_machine "github.com/runpod/terraform-provider-runpod/internal/provider/resource_machine"
 	resource_network_volume "github.com/runpod/terraform-provider-runpod/internal/provider/resource_network_volume"
 	resource_endpoint "github.com/runpod/terraform-provider-runpod/internal/provider/resource_endpoint"
+	resource_endpoint_job "github.com/runpod/terraform-provider-runpod/internal/provider/resource_endpoint_job"
+	resource_endpoint_worker "github.com/runpod/terraform-provider-runpod/internal/provider/resource_endpoint_worker"
 	resource_template "github.com/runpod/terraform-provider-runpod/internal/provider/resource_template"
 	resource_container_registry_auth "github.com/runpod/terraform-provider-runpod/internal/provider/resource_container_registry_auth"
+	resource_ecr_delegation "github.com/runpod/terraform-provider-runpod/internal/provider/resource_ecr_delegation"
 
 	datasource_pod "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_pod"
 	datasource_machine "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_machine"
@@ -28,6 +31,12 @@ import (
 	datasource_user "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_user"
 	datasource_template "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_template"
 	datasource_container_registry_auth "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_container_registry_auth"
+	datasource_ecr_delegations "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_ecr_delegations"
+
+	datasource_endpoint_jobs "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_endpoint_jobs"
+	datasource_endpoint_job_logs "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_endpoint_job_logs"
+	datasource_endpoint_workers "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_endpoint_workers"
+	datasource_endpoint_worker_logs "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_endpoint_worker_logs"
 
 	datasource_billing_pod "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_pod"
 	datasource_billing_network_volume "github.com/runpod/terraform-provider-runpod/internal/provider/datasource_billing_network_volume"
@@ -86,7 +95,7 @@ func (p *runpodProvider) Schema(ctx context.Context, req provider.SchemaRequest,
 			"base_url": schema.StringAttribute{
 				Optional:            true,
 				Description:         "RunPod API base URL",
-				MarkdownDescription: "RunPod API base URL. Can also be set via the `RUNPOD_BASE_URL` environment variable. Defaults to `https://rest.runpod.io/v1`.",
+				MarkdownDescription: "RunPod API base URL. Can also be set via the `RUNPOD_BASE_URL` environment variable. Defaults to `https://api.runpod.io/v2`.",
 			},
 		},
 	}
@@ -117,7 +126,7 @@ func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	}
 
 	if p.baseUrl == "" {
-		p.baseUrl = "https://rest.runpod.io/v1"
+		p.baseUrl = "https://api.runpod.io/v2"
 	}
 	p.graphqlUrl = "https://api.runpod.io/graphql"
 
@@ -130,7 +139,13 @@ func (p *runpodProvider) Configure(ctx context.Context, req provider.ConfigureRe
 	}
 
 	p.client = client.NewRunPodClient(p.apiKey, p.graphqlUrl, p.baseUrl)
-	resp.ResourceData = p.client
+	
+	// Pass client wrapper for pod_action resource (uses REST only)
+	clientWrapper := &client.RunPodClientWrapper{
+		APIKey:      p.apiKey,
+		RestBaseURL: p.baseUrl,
+	}
+	resp.ResourceData = clientWrapper
 	resp.DataSourceData = p.client
 
 	log.Printf("API base URL: %s\n", p.baseUrl)
@@ -148,6 +163,11 @@ func (p *runpodProvider) DataSources(ctx context.Context) []func() datasource.Da
 		datasource_user.NewUserDataSource,
 		datasource_template.NewTemplateDataSource,
 		datasource_container_registry_auth.NewContainerRegistryAuthDataSource,
+		datasource_ecr_delegations.NewEcrDelegationsDataSource,
+		datasource_endpoint_jobs.NewEndpointJobsDataSource,
+		datasource_endpoint_job_logs.NewEndpointJobLogsDataSource,
+		datasource_endpoint_workers.NewEndpointWorkersDataSource,
+		datasource_endpoint_worker_logs.NewEndpointWorkerLogsDataSource,
 		datasource_billing_pod.NewBillingPodDataSource,
 		datasource_billing_network_volume.NewBillingNetworkVolumeDataSource,
 		datasource_billing_endpoint.NewBillingEndpointDataSource,
@@ -162,7 +182,10 @@ func (p *runpodProvider) Resources(ctx context.Context) []func() resource.Resour
 		resource_machine.NewMachineResource,
 		resource_network_volume.NewNetworkVolumeResource,
 		resource_endpoint.NewEndpointResource,
+		resource_endpoint_job.NewEndpointJobResource,
+		resource_endpoint_worker.NewEndpointWorkerResource,
 		resource_template.NewTemplateResource,
 		resource_container_registry_auth.NewContainerRegistryAuthResource,
+		resource_ecr_delegation.NewEcrDelegationResource,
 	}
 }

@@ -41,7 +41,7 @@ func (r *TemplateResource) getClient() *client.RunPodClient {
 	}
 	baseURL := os.Getenv("RUNPOD_BASE_URL")
 	if baseURL == "" {
-		baseURL = "https://rest.runpod.io/v1"
+		baseURL = "https://api.runpod.io/v2"
 	}
 	r.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
 	return r.client
@@ -68,8 +68,8 @@ func (r *TemplateResource) Create(ctx context.Context, req resource.CreateReques
 	url := client.RestBaseURL + "/templates"
 
 	body := map[string]interface{}{
-		"name":       config.Name.ValueString(),
-		"imageName":  config.ImageName.ValueString(),
+		"name":   config.Name.ValueString(),
+		"image":  config.ImageName.ValueString(),
 	}
 
 	if !config.Category.IsNull() && config.Category.ValueString() != "" {
@@ -77,7 +77,7 @@ func (r *TemplateResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	if !config.ContainerDiskInGb.IsNull() && config.ContainerDiskInGb.ValueInt64() > 0 {
-		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
+		body["disk"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
 
 	if !config.ContainerRegistryAuthId.IsNull() && config.ContainerRegistryAuthId.ValueString() != "" {
@@ -121,11 +121,11 @@ func (r *TemplateResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	if !config.IsPublic.IsNull() {
-		body["isPublic"] = config.IsPublic.ValueBool()
+		body["public"] = config.IsPublic.ValueBool()
 	}
 
 	if !config.IsServerless.IsNull() {
-		body["isServerless"] = config.IsServerless.ValueBool()
+		body["serverless"] = config.IsServerless.ValueBool()
 	}
 
 	if !config.Ports.IsNull() && len(config.Ports.Elements()) > 0 {
@@ -145,11 +145,15 @@ func (r *TemplateResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	if !config.VolumeInGb.IsNull() && config.VolumeInGb.ValueInt64() > 0 {
-		body["volumeInGb"] = int64(config.VolumeInGb.ValueInt64())
-	}
-
-	if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
-		body["volumeMountPath"] = config.VolumeMountPath.ValueString()
+		mounts := make([]map[string]interface{}, 0)
+		mount := map[string]interface{}{
+			"volumeInGb": int64(config.VolumeInGb.ValueInt64()),
+		}
+		if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
+			mount["volumeMountPath"] = config.VolumeMountPath.ValueString()
+		}
+		mounts = append(mounts, mount)
+		body["mounts"] = mounts
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -181,10 +185,22 @@ func (r *TemplateResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
+	}
+
+	var result map[string]interface{}
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		if template, ok := data["template"].(map[string]interface{}); ok {
+			result = template
+		} else {
+			resp.Diagnostics.AddError("API Error", "Failed to extract template from v2 response data")
+			return
+		}
+	} else {
+		result = envelope
 	}
 
 	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {
@@ -202,103 +218,81 @@ func (r *TemplateResource) Create(ctx context.Context, req resource.CreateReques
 	if val, ok := result["name"].(string); ok {
 		config.Name = types.StringValue(val)
 	}
-	if val, ok := result["imageName"].(string); ok {
+	if val, ok := result["image"].(string); ok {
 		config.ImageName = types.StringValue(val)
 	}
 	if val, ok := result["category"].(string); ok {
 		config.Category = types.StringValue(val)
 	}
-	if val, ok := result["containerDiskInGb"].(float64); ok {
+	if val, ok := result["disk"].(float64); ok {
 		config.ContainerDiskInGb = types.Int64Value(int64(val))
 	}
 	if val, ok := result["containerRegistryAuthId"].(string); ok {
 		config.ContainerRegistryAuthId = types.StringValue(val)
 	}
+
 	if val, ok := result["dockerEntrypoint"].([]interface{}); ok {
-		entrypoint := make([]attr.Value, 0)
+		entrypointList := make([]attr.Value, 0)
 		for _, v := range val {
 			if vStr, ok := v.(string); ok {
-				entrypoint = append(entrypoint, types.StringValue(vStr))
+				entrypointList = append(entrypointList, types.StringValue(vStr))
 			}
 		}
-		if len(entrypoint) > 0 {
-			entrypointList, diags := types.ListValue(types.StringType, entrypoint)
+		if len(entrypointList) > 0 {
+			config.DockerEntrypoint, diags = types.ListValue(types.StringType, entrypointList)
 			if diags.HasError() {
 				resp.Diagnostics.Append(diags...)
 				return
 			}
-			config.DockerEntrypoint = entrypointList
 		}
 	}
+
 	if val, ok := result["dockerStartCmd"].([]interface{}); ok {
-		startCmd := make([]attr.Value, 0)
+		startCmdList := make([]attr.Value, 0)
 		for _, v := range val {
 			if vStr, ok := v.(string); ok {
-				startCmd = append(startCmd, types.StringValue(vStr))
+				startCmdList = append(startCmdList, types.StringValue(vStr))
 			}
 		}
-		if len(startCmd) > 0 {
-			startCmdList, diags := types.ListValue(types.StringType, startCmd)
+		if len(startCmdList) > 0 {
+			config.DockerStartCmd, diags = types.ListValue(types.StringType, startCmdList)
 			if diags.HasError() {
 				resp.Diagnostics.Append(diags...)
 				return
 			}
-			config.DockerStartCmd = startCmdList
 		}
 	}
-	if val, ok := result["env"].(map[string]interface{}); ok {
-		envMap := make(map[string]attr.Value)
-		for key, v := range val {
-			if strVal, ok := v.(string); ok {
-				envMap[key] = types.StringValue(strVal)
-			}
-		}
-		if len(envMap) > 0 {
-			envObj, diags := types.MapValue(types.StringType, envMap)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-			config.Env = envObj
-		}
-	}
-	if val, ok := result["isPublic"].(bool); ok {
+
+	if val, ok := result["public"].(bool); ok {
 		config.IsPublic = types.BoolValue(val)
 	}
-	if val, ok := result["isServerless"].(bool); ok {
+
+	if val, ok := result["serverless"].(bool); ok {
 		config.IsServerless = types.BoolValue(val)
 	}
-	if val, ok := result["ports"].([]interface{}); ok {
-		ports := make([]attr.Value, 0)
-		for _, v := range val {
-			if vStr, ok := v.(string); ok {
-				ports = append(ports, types.StringValue(vStr))
-			}
-		}
-		if len(ports) > 0 {
-			portsList, diags := types.ListValue(types.StringType, ports)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-			config.Ports = portsList
-		}
-	}
+
 	if val, ok := result["readme"].(string); ok {
 		config.Readme = types.StringValue(val)
 	}
-	if val, ok := result["volumeInGb"].(float64); ok {
-		config.VolumeInGb = types.Int64Value(int64(val))
+
+	if result["volumeInGb"] != nil {
+		if val, ok := result["volumeInGb"].(float64); ok {
+			config.VolumeInGb = types.Int64Value(int64(val))
+		}
 	}
+
 	if val, ok := result["volumeMountPath"].(string); ok {
 		config.VolumeMountPath = types.StringValue(val)
 	}
+
 	if val, ok := result["earned"].(float64); ok {
 		config.Earned = types.Float64Value(val)
 	}
+
 	if val, ok := result["isRunpod"].(bool); ok {
 		config.IsRunpod = types.BoolValue(val)
 	}
+
 	if val, ok := result["runtimeInMin"].(float64); ok {
 		config.RuntimeInMin = types.Int64Value(int64(val))
 	}
@@ -350,10 +344,22 @@ func (r *TemplateResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
+	}
+
+	var result map[string]interface{}
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		if template, ok := data["template"].(map[string]interface{}); ok {
+			result = template
+		} else {
+			resp.Diagnostics.AddError("API Error", "Failed to extract template from v2 response data")
+			return
+		}
+	} else {
+		result = envelope
 	}
 
 	if result == nil {
@@ -364,103 +370,81 @@ func (r *TemplateResource) Read(ctx context.Context, req resource.ReadRequest, r
 	if val, ok := result["name"].(string); ok {
 		state.Name = types.StringValue(val)
 	}
-	if val, ok := result["imageName"].(string); ok {
+	if val, ok := result["image"].(string); ok {
 		state.ImageName = types.StringValue(val)
 	}
 	if val, ok := result["category"].(string); ok {
 		state.Category = types.StringValue(val)
 	}
-	if val, ok := result["containerDiskInGb"].(float64); ok {
+	if val, ok := result["disk"].(float64); ok {
 		state.ContainerDiskInGb = types.Int64Value(int64(val))
 	}
 	if val, ok := result["containerRegistryAuthId"].(string); ok {
 		state.ContainerRegistryAuthId = types.StringValue(val)
 	}
+
 	if val, ok := result["dockerEntrypoint"].([]interface{}); ok {
-		entrypoint := make([]attr.Value, 0)
+		entrypointList := make([]attr.Value, 0)
 		for _, v := range val {
 			if vStr, ok := v.(string); ok {
-				entrypoint = append(entrypoint, types.StringValue(vStr))
+				entrypointList = append(entrypointList, types.StringValue(vStr))
 			}
 		}
-		if len(entrypoint) > 0 {
-			entrypointList, diags := types.ListValue(types.StringType, entrypoint)
+		if len(entrypointList) > 0 {
+			state.DockerEntrypoint, diags = types.ListValue(types.StringType, entrypointList)
 			if diags.HasError() {
 				resp.Diagnostics.Append(diags...)
 				return
 			}
-			state.DockerEntrypoint = entrypointList
 		}
 	}
+
 	if val, ok := result["dockerStartCmd"].([]interface{}); ok {
-		startCmd := make([]attr.Value, 0)
+		startCmdList := make([]attr.Value, 0)
 		for _, v := range val {
 			if vStr, ok := v.(string); ok {
-				startCmd = append(startCmd, types.StringValue(vStr))
+				startCmdList = append(startCmdList, types.StringValue(vStr))
 			}
 		}
-		if len(startCmd) > 0 {
-			startCmdList, diags := types.ListValue(types.StringType, startCmd)
+		if len(startCmdList) > 0 {
+			state.DockerStartCmd, diags = types.ListValue(types.StringType, startCmdList)
 			if diags.HasError() {
 				resp.Diagnostics.Append(diags...)
 				return
 			}
-			state.DockerStartCmd = startCmdList
 		}
 	}
-	if val, ok := result["env"].(map[string]interface{}); ok {
-		envMap := make(map[string]attr.Value)
-		for key, v := range val {
-			if strVal, ok := v.(string); ok {
-				envMap[key] = types.StringValue(strVal)
-			}
-		}
-		if len(envMap) > 0 {
-			envObj, diags := types.MapValue(types.StringType, envMap)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-			state.Env = envObj
-		}
-	}
-	if val, ok := result["isPublic"].(bool); ok {
+
+	if val, ok := result["public"].(bool); ok {
 		state.IsPublic = types.BoolValue(val)
 	}
-	if val, ok := result["isServerless"].(bool); ok {
+
+	if val, ok := result["serverless"].(bool); ok {
 		state.IsServerless = types.BoolValue(val)
 	}
-	if val, ok := result["ports"].([]interface{}); ok {
-		ports := make([]attr.Value, 0)
-		for _, v := range val {
-			if vStr, ok := v.(string); ok {
-				ports = append(ports, types.StringValue(vStr))
-			}
-		}
-		if len(ports) > 0 {
-			portsList, diags := types.ListValue(types.StringType, ports)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-			state.Ports = portsList
-		}
-	}
+
 	if val, ok := result["readme"].(string); ok {
 		state.Readme = types.StringValue(val)
 	}
-	if val, ok := result["volumeInGb"].(float64); ok {
-		state.VolumeInGb = types.Int64Value(int64(val))
+
+	if result["volumeInGb"] != nil {
+		if val, ok := result["volumeInGb"].(float64); ok {
+			state.VolumeInGb = types.Int64Value(int64(val))
+		}
 	}
+
 	if val, ok := result["volumeMountPath"].(string); ok {
 		state.VolumeMountPath = types.StringValue(val)
 	}
+
 	if val, ok := result["earned"].(float64); ok {
 		state.Earned = types.Float64Value(val)
 	}
+
 	if val, ok := result["isRunpod"].(bool); ok {
 		state.IsRunpod = types.BoolValue(val)
 	}
+
 	if val, ok := result["runtimeInMin"].(float64); ok {
 		state.RuntimeInMin = types.Int64Value(int64(val))
 	}
@@ -473,15 +457,15 @@ func (r *TemplateResource) Read(ctx context.Context, req resource.ReadRequest, r
 }
 
 func (r *TemplateResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var config TemplateModel
-	diags := req.Config.Get(ctx, &config)
+	var state TemplateModel
+	diags := req.State.Get(ctx, &state)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
 		return
 	}
 
-	var state TemplateModel
-	diags = req.State.Get(ctx, &state)
+	var config TemplateModel
+	diags = req.Config.Get(ctx, &config)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
 		return
@@ -493,24 +477,48 @@ func (r *TemplateResource) Update(ctx context.Context, req resource.UpdateReques
 
 	body := map[string]interface{}{}
 
-	if !config.Name.IsNull() && config.Name.ValueString() != "" {
+	if !config.Name.IsNull() && config.Name.ValueString() != state.Name.ValueString() {
 		body["name"] = config.Name.ValueString()
 	}
 
-	if !config.ImageName.IsNull() && config.ImageName.ValueString() != "" {
-		body["imageName"] = config.ImageName.ValueString()
+	if !config.ImageName.IsNull() && config.ImageName.ValueString() != state.ImageName.ValueString() {
+		body["image"] = config.ImageName.ValueString()
 	}
 
-	if !config.Category.IsNull() && config.Category.ValueString() != "" {
+	if !config.Category.IsNull() && config.Category.ValueString() != state.Category.ValueString() {
 		body["category"] = config.Category.ValueString()
 	}
 
-	if !config.ContainerDiskInGb.IsNull() && config.ContainerDiskInGb.ValueInt64() > 0 {
-		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
+	if !config.ContainerDiskInGb.IsNull() && config.ContainerDiskInGb.ValueInt64() != state.ContainerDiskInGb.ValueInt64() {
+		body["disk"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
 
-	if !config.ContainerRegistryAuthId.IsNull() && config.ContainerRegistryAuthId.ValueString() != "" {
+	if !config.ContainerRegistryAuthId.IsNull() && config.ContainerRegistryAuthId.ValueString() != state.ContainerRegistryAuthId.ValueString() {
 		body["containerRegistryAuthId"] = config.ContainerRegistryAuthId.ValueString()
+	}
+
+	if !config.IsPublic.IsNull() && config.IsPublic.ValueBool() != state.IsPublic.ValueBool() {
+		body["public"] = config.IsPublic.ValueBool()
+	}
+
+	if !config.IsServerless.IsNull() && config.IsServerless.ValueBool() != state.IsServerless.ValueBool() {
+		body["serverless"] = config.IsServerless.ValueBool()
+	}
+
+	if !config.Readme.IsNull() && config.Readme.ValueString() != state.Readme.ValueString() {
+		body["readme"] = config.Readme.ValueString()
+	}
+
+	if !config.Env.IsNull() {
+		envMap := make(map[string]interface{})
+		for key, val := range config.Env.Elements() {
+			if strVal, ok := val.(types.String); ok {
+				envMap[key] = strVal.ValueString()
+			}
+		}
+		if len(envMap) > 0 {
+			body["env"] = envMap
+		}
 	}
 
 	if !config.DockerEntrypoint.IsNull() && len(config.DockerEntrypoint.Elements()) > 0 {
@@ -537,26 +545,6 @@ func (r *TemplateResource) Update(ctx context.Context, req resource.UpdateReques
 		}
 	}
 
-	if !config.Env.IsNull() {
-		envMap := make(map[string]interface{})
-		for key, val := range config.Env.Elements() {
-			if strVal, ok := val.(types.String); ok {
-				envMap[key] = strVal.ValueString()
-			}
-		}
-		if len(envMap) > 0 {
-			body["env"] = envMap
-		}
-	}
-
-	if !config.IsPublic.IsNull() {
-		body["isPublic"] = config.IsPublic.ValueBool()
-	}
-
-	if !config.IsServerless.IsNull() {
-		body["isServerless"] = config.IsServerless.ValueBool()
-	}
-
 	if !config.Ports.IsNull() && len(config.Ports.Elements()) > 0 {
 		ports := make([]string, 0)
 		for _, val := range config.Ports.Elements() {
@@ -569,16 +557,95 @@ func (r *TemplateResource) Update(ctx context.Context, req resource.UpdateReques
 		}
 	}
 
-	if !config.Readme.IsNull() && config.Readme.ValueString() != "" {
-		body["readme"] = config.Readme.ValueString()
+	if !config.VolumeInGb.IsNull() && config.VolumeInGb.ValueInt64() != state.VolumeInGb.ValueInt64() {
+		mounts := make([]map[string]interface{}, 0)
+		mount := map[string]interface{}{
+			"volumeInGb": int64(config.VolumeInGb.ValueInt64()),
+		}
+		if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
+			mount["volumeMountPath"] = config.VolumeMountPath.ValueString()
+		}
+		mounts = append(mounts, mount)
+		body["mounts"] = mounts
 	}
 
-	if !config.VolumeInGb.IsNull() && config.VolumeInGb.ValueInt64() > 0 {
-		body["volumeInGb"] = int64(config.VolumeInGb.ValueInt64())
-	}
+	if len(body) == 0 {
+		// No fields to update, just read the full response to get all fields including computed ones
+		reqHTTP, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+		if err != nil {
+			resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to create request: %v", err))
+			return
+		}
 
-	if !config.VolumeMountPath.IsNull() && config.VolumeMountPath.ValueString() != "" {
-		body["volumeMountPath"] = config.VolumeMountPath.ValueString()
+		reqHTTP.Header.Set("Content-Type", "application/json")
+		reqHTTP.Header.Set("Authorization", fmt.Sprintf("Bearer %s", client.APIKey))
+
+		httpClient := &http.Client{}
+		respHTTP, err := httpClient.Do(reqHTTP)
+		if err != nil {
+			resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to make API call: %v", err))
+			return
+		}
+		defer respHTTP.Body.Close()
+
+		respBody, err := io.ReadAll(respHTTP.Body)
+		if err != nil {
+			resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to read response: %v", err))
+			return
+		}
+
+		var envelope map[string]interface{}
+		if err := json.Unmarshal(respBody, &envelope); err != nil {
+			resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
+			return
+		}
+
+		var result map[string]interface{}
+		if data, ok := envelope["data"].(map[string]interface{}); ok {
+			if template, ok := data["template"].(map[string]interface{}); ok {
+				result = template
+			} else {
+				resp.Diagnostics.AddError("API Error", "Failed to extract template from v2 response data")
+				return
+			}
+		} else {
+			result = envelope
+		}
+
+		if result == nil {
+			resp.Diagnostics.AddError("API Error", "Empty response from API")
+			return
+		}
+
+		config.Id = state.Id
+		config.Name = state.Name
+		config.ImageName = state.ImageName
+		config.Category = state.Category
+		config.ContainerDiskInGb = state.ContainerDiskInGb
+		config.ContainerRegistryAuthId = state.ContainerRegistryAuthId
+		config.DockerEntrypoint = state.DockerEntrypoint
+		config.DockerStartCmd = state.DockerStartCmd
+		config.Env = state.Env
+		config.IsPublic = state.IsPublic
+		config.IsServerless = state.IsServerless
+		config.Ports = state.Ports
+		config.Readme = state.Readme
+		config.VolumeInGb = state.VolumeInGb
+		config.VolumeMountPath = state.VolumeMountPath
+		config.Earned = state.Earned
+		config.IsRunpod = state.IsRunpod
+		config.RuntimeInMin = state.RuntimeInMin
+
+		// Parse computed fields from response
+		if val, ok := result["earned"].(float64); ok {
+			config.Earned = types.Float64Value(val)
+		}
+
+		diags = resp.State.Set(ctx, &config)
+		if diags.HasError() {
+			resp.Diagnostics.Append(diags...)
+		}
+		return
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -610,10 +677,22 @@ func (r *TemplateResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	var envelope map[string]interface{}
+	if err := json.Unmarshal(respBody, &envelope); err != nil {
 		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to parse response (status: %d): %s", respHTTP.StatusCode, string(respBody)))
 		return
+	}
+
+	var result map[string]interface{}
+	if data, ok := envelope["data"].(map[string]interface{}); ok {
+		if template, ok := data["template"].(map[string]interface{}); ok {
+			result = template
+		} else {
+			resp.Diagnostics.AddError("API Error", "Failed to extract template from v2 response data")
+			return
+		}
+	} else {
+		result = envelope
 	}
 
 	if respHTTP.StatusCode != 200 && respHTTP.StatusCode != 201 {
@@ -621,111 +700,25 @@ func (r *TemplateResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	if val, ok := result["name"].(string); ok {
-		state.Name = types.StringValue(val)
-	}
-	if val, ok := result["imageName"].(string); ok {
-		state.ImageName = types.StringValue(val)
-	}
-	if val, ok := result["category"].(string); ok {
-		state.Category = types.StringValue(val)
-	}
-	if val, ok := result["containerDiskInGb"].(float64); ok {
-		state.ContainerDiskInGb = types.Int64Value(int64(val))
-	}
-	if val, ok := result["containerRegistryAuthId"].(string); ok {
-		state.ContainerRegistryAuthId = types.StringValue(val)
-	}
-	if val, ok := result["dockerEntrypoint"].([]interface{}); ok {
-		entrypoint := make([]attr.Value, 0)
-		for _, v := range val {
-			if vStr, ok := v.(string); ok {
-				entrypoint = append(entrypoint, types.StringValue(vStr))
-			}
-		}
-		if len(entrypoint) > 0 {
-			entrypointList, diags := types.ListValue(types.StringType, entrypoint)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-			state.DockerEntrypoint = entrypointList
-		}
-	}
-	if val, ok := result["dockerStartCmd"].([]interface{}); ok {
-		startCmd := make([]attr.Value, 0)
-		for _, v := range val {
-			if vStr, ok := v.(string); ok {
-				startCmd = append(startCmd, types.StringValue(vStr))
-			}
-		}
-		if len(startCmd) > 0 {
-			startCmdList, diags := types.ListValue(types.StringType, startCmd)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-			state.DockerStartCmd = startCmdList
-		}
-	}
-	if val, ok := result["env"].(map[string]interface{}); ok {
-		envMap := make(map[string]attr.Value)
-		for key, v := range val {
-			if strVal, ok := v.(string); ok {
-				envMap[key] = types.StringValue(strVal)
-			}
-		}
-		if len(envMap) > 0 {
-			envObj, diags := types.MapValue(types.StringType, envMap)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-			state.Env = envObj
-		}
-	}
-	if val, ok := result["isPublic"].(bool); ok {
-		state.IsPublic = types.BoolValue(val)
-	}
-	if val, ok := result["isServerless"].(bool); ok {
-		state.IsServerless = types.BoolValue(val)
-	}
-	if val, ok := result["ports"].([]interface{}); ok {
-		ports := make([]attr.Value, 0)
-		for _, v := range val {
-			if vStr, ok := v.(string); ok {
-				ports = append(ports, types.StringValue(vStr))
-			}
-		}
-		if len(ports) > 0 {
-			portsList, diags := types.ListValue(types.StringType, ports)
-			if diags.HasError() {
-				resp.Diagnostics.Append(diags...)
-				return
-			}
-			state.Ports = portsList
-		}
-	}
-	if val, ok := result["readme"].(string); ok {
-		state.Readme = types.StringValue(val)
-	}
-	if val, ok := result["volumeInGb"].(float64); ok {
-		state.VolumeInGb = types.Int64Value(int64(val))
-	}
-	if val, ok := result["volumeMountPath"].(string); ok {
-		state.VolumeMountPath = types.StringValue(val)
-	}
-	if val, ok := result["earned"].(float64); ok {
-		state.Earned = types.Float64Value(val)
-	}
-	if val, ok := result["isRunpod"].(bool); ok {
-		state.IsRunpod = types.BoolValue(val)
-	}
-	if val, ok := result["runtimeInMin"].(float64); ok {
-		state.RuntimeInMin = types.Int64Value(int64(val))
+	if id, ok := result["id"].(string); ok {
+		config.Id = types.StringValue(id)
+	} else {
+		resp.Diagnostics.AddError("API Error", fmt.Sprintf("Failed to get template ID from update response: %v", result))
+		return
 	}
 
-	diags = resp.State.Set(ctx, &state)
+	// Parse computed fields from response
+	if val, ok := result["earned"].(float64); ok {
+		config.Earned = types.Float64Value(val)
+	}
+	if val, ok := result["isRunpod"].(bool); ok {
+		config.IsRunpod = types.BoolValue(val)
+	}
+	if val, ok := result["runtimeInMin"].(float64); ok {
+		config.RuntimeInMin = types.Int64Value(int64(val))
+	}
+
+	diags = resp.State.Set(ctx, &config)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
 		return

@@ -60,6 +60,7 @@ func EndpointResourceSchema(ctx context.Context) schema.Schema {
 			},
 			"flashboot": schema.BoolAttribute{
 				Optional:            true,
+				Computed:            true,
 				Description:         "Enable flashboot",
 				MarkdownDescription: "Enable flashboot",
 			},
@@ -68,6 +69,11 @@ func EndpointResourceSchema(ctx context.Context) schema.Schema {
 				Computed:            true,
 				Description:         "Number of GPUs",
 				MarkdownDescription: "Number of GPUs",
+			},
+			"gpu_type_id": schema.StringAttribute{
+				Optional:    true,
+				Description: "GPU type ID (v2 required)",
+				MarkdownDescription: "GPU type ID. Required when creating endpoint with v2 API.",
 			},
 			"gpu_type_ids": schema.ListAttribute{
 				ElementType: types.StringType,
@@ -79,6 +85,18 @@ func EndpointResourceSchema(ctx context.Context) schema.Schema {
 				Optional:            true,
 				Description:         "GPU type priority: availability or custom",
 				MarkdownDescription: "GPU type priority: availability or custom",
+			},
+			"cloud_type": schema.StringAttribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "Cloud type: COMMUNITY or SECURE",
+				MarkdownDescription: "Cloud type: COMMUNITY or SECURE",
+			},
+			"container_disk_in_gb": schema.Int64Attribute{
+				Optional:            true,
+				Computed:            true,
+				Description:         "Container disk size in GB",
+				MarkdownDescription: "Container disk size in GB",
 			},
 			"id": schema.StringAttribute{
 				Computed:            true,
@@ -124,10 +142,15 @@ func EndpointResourceSchema(ctx context.Context) schema.Schema {
 				Description:         "Scaler value",
 				MarkdownDescription: "Scaler value",
 			},
+			"image_name": schema.StringAttribute{
+				Optional:            true,
+				Description:         "Container image name (v2 required)",
+				MarkdownDescription: "Container image name (v2 required). Required when creating endpoint with v2 API.",
+			},
 			"template_id": schema.StringAttribute{
-				Required:            true,
-				Description:         "Template ID for the endpoint",
-				MarkdownDescription: "Template ID for the endpoint",
+				Optional:            true,
+				Description:         "Template ID for the endpoint (deprecated in v2)",
+				MarkdownDescription: "Template ID for the endpoint. Deprecated in v2 - use image_name instead.",
 			},
 			"template_version": schema.Int64Attribute{
 				Computed:            true,
@@ -193,8 +216,12 @@ type EndpointModel struct {
 	ExecutionTimeoutMs   types.Int64  `tfsdk:"execution_timeout_ms"`
 	Flashboot            types.Bool   `tfsdk:"flashboot"`
 	GpuCount             types.Int64  `tfsdk:"gpu_count"`
+	GpuTypeId            types.String `tfsdk:"gpu_type_id"`
 	GpuTypeIds           types.List   `tfsdk:"gpu_type_ids"`
 	GpuTypePriority      types.String `tfsdk:"gpu_type_priority"`
+	CloudType            types.String `tfsdk:"cloud_type"`
+	ContainerDiskInGb    types.Int64  `tfsdk:"container_disk_in_gb"`
+	ImageName            types.String `tfsdk:"image_name"`
 	Id                   types.String `tfsdk:"id"`
 	IdleTimeout          types.Int64  `tfsdk:"idle_timeout"`
 	MinCudaVersion       types.String `tfsdk:"min_cuda_version"`

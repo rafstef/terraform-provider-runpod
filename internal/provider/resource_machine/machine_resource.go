@@ -33,7 +33,7 @@ func (r *MachineResource) getClient() *client.RunPodClient {
 	}
 	restBaseURL := os.Getenv("RUNPOD_BASE_URL")
 	if restBaseURL == "" {
-		restBaseURL = "https://rest.runpod.io/v1"
+		restBaseURL = "https://api.runpod.io/v2"
 	}
 	r.client = client.NewRunPodClient(apiKey, graphqlEndpoint, restBaseURL)
 	return r.client

@@ -97,12 +97,12 @@ func TestTemplateResource_Create_Success(t *testing.T) {
 		_, _ = w.Write([]byte(`{
 			"id": "tpl-1",
 			"name": "my-tpl",
-			"imageName": "img",
+			"image": "img",
 			"category": "NVIDIA",
-			"containerDiskInGb": 20,
+			"disk": 20,
 			"containerRegistryAuthId": "auth-9",
-			"isPublic": true,
-			"isServerless": false,
+			"public": true,
+			"serverless": false,
 			"readme": "hello",
 			"volumeInGb": 5,
 			"volumeMountPath": "/workspace",
@@ -142,14 +142,14 @@ func TestTemplateResource_Create_Success(t *testing.T) {
 	if gotBody["name"] != "my-tpl" {
 		t.Errorf("body name = %v, want my-tpl", gotBody["name"])
 	}
-	if gotBody["imageName"] != "img" {
-		t.Errorf("body imageName = %v, want img", gotBody["imageName"])
+	if gotBody["image"] != "img" {
+		t.Errorf("body image = %v, want img", gotBody["image"])
 	}
 	if gotBody["category"] != "NVIDIA" {
 		t.Errorf("body category = %v, want NVIDIA", gotBody["category"])
 	}
-	if gotBody["containerDiskInGb"] != float64(20) {
-		t.Errorf("body containerDiskInGb = %v, want 20", gotBody["containerDiskInGb"])
+	if gotBody["disk"] != float64(20) {
+		t.Errorf("body disk = %v, want 20", gotBody["disk"])
 	}
 	if gotBody["containerRegistryAuthId"] != "auth-9" {
 		t.Errorf("body containerRegistryAuthId = %v, want auth-9", gotBody["containerRegistryAuthId"])
@@ -178,6 +178,9 @@ func TestTemplateResource_Create_Success(t *testing.T) {
 	if !state.IsPublic.ValueBool() {
 		t.Errorf("state IsPublic = false, want true")
 	}
+	if state.IsServerless.ValueBool() {
+		t.Errorf("state IsServerless = true, want false")
+	}
 	if state.Earned.ValueFloat64() != 1.5 {
 		t.Errorf("state Earned = %v, want 1.5", state.Earned.ValueFloat64())
 	}
@@ -191,7 +194,7 @@ func TestTemplateResource_Create_Accepts201(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(`{"id":"tpl-1","name":"my-tpl","imageName":"img"}`))
+		_, _ = w.Write([]byte(`{"id":"tpl-1","name":"my-tpl","image":"img"}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")
@@ -283,7 +286,7 @@ func TestTemplateResource_Create_WithListFields(t *testing.T) {
 		_, _ = w.Write([]byte(`{
 			"id":"tpl-2",
 			"name":"my-tpl",
-			"imageName":"img",
+			"image":"img",
 			"dockerEntrypoint":["/bin/sh","-c"],
 			"dockerStartCmd":["sleep","infinity"],
 			"ports":["8080/http","22/tcp"]
@@ -341,9 +344,9 @@ func TestTemplateResource_Read_Success(t *testing.T) {
 		_, _ = w.Write([]byte(`{
 			"id":"tpl-1",
 			"name":"renamed",
-			"imageName":"img2",
+			"image":"img2",
 			"category":"CPU",
-			"containerDiskInGb":30
+			"disk":30
 		}`))
 	}))
 	defer srv.Close()
@@ -408,7 +411,7 @@ func TestTemplateResource_Update_RetainsApiComputedFields(t *testing.T) {
 		_, _ = w.Write([]byte(`{
 			"id":"tpl-1",
 			"name":"updated-name",
-			"imageName":"img",
+			"image":"img",
 			"category":"AMD",
 			"earned":42.5
 		}`))
@@ -482,7 +485,7 @@ func TestTemplateResource_Update_ExcludesCategory(t *testing.T) {
 		raw, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(raw, &gotBody)
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"id":"tpl-1","name":"updated-name","imageName":"img"}`))
+		_, _ = w.Write([]byte(`{"id":"tpl-1","name":"updated-name","image":"img"}`))
 	}))
 	defer srv.Close()
 	t.Setenv("RUNPOD_API_KEY", "testkey123")

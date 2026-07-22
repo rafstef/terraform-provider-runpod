@@ -23,7 +23,7 @@ variable "data_center_id" {
   default     = "US-KS-2"
 }
 
-variable "storage_tier" {
+variable "type" {
   type        = string
   description = "Storage tier: STANDARD or HIGH_PERFORMANCE"
   default     = "STANDARD"
@@ -57,7 +57,7 @@ resource "runpod_network_volume" "demo" {
   name           = var.volume_name
   size           = var.volume_size_gb
   data_center_id = var.data_center_id
-  storage_tier   = var.storage_tier
+  type           = var.type
 }
 
 output "volume_id" {
@@ -71,7 +71,7 @@ output "volume_info" {
     name           = runpod_network_volume.demo.name
     size_gb        = runpod_network_volume.demo.size
     data_center_id = runpod_network_volume.demo.data_center_id
-    storage_tier   = runpod_network_volume.demo.storage_tier
+    type           = runpod_network_volume.demo.type
   }
 }
 

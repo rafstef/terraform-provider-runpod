@@ -9,9 +9,9 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/attr"
 
 	client "github.com/runpod/terraform-provider-runpod/internal/provider/client"
 )
@@ -41,7 +41,7 @@ func (r *EndpointResource) getClient() *client.RunPodClient {
 	}
 	baseURL := os.Getenv("RUNPOD_BASE_URL")
 	if baseURL == "" {
-		baseURL = "https://rest.runpod.io/v1"
+		baseURL = "https://api.runpod.io/v2"
 	}
 	r.client = client.NewRunPodClient(apiKey, endpoint, baseURL)
 	return r.client
@@ -68,7 +68,11 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 	url := client.RestBaseURL + "/endpoints"
 
 	body := map[string]interface{}{
-		"templateId": config.TemplateId.ValueString(),
+		"image": config.ImageName.ValueString(),
+		"gpu": map[string]interface{}{
+			"id":    config.GpuTypeId.ValueString(),
+			"count": config.GpuCount.ValueInt64(),
+		},
 	}
 
 	if !config.Name.IsNull() && config.Name.ValueString() != "" {
@@ -119,8 +123,12 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 		body["computeType"] = config.ComputeType.ValueString()
 	}
 
-	if !config.GpuCount.IsNull() {
-		body["gpuCount"] = int64(config.GpuCount.ValueInt64())
+	if !config.CloudType.IsNull() && config.CloudType.ValueString() != "" {
+		body["cloudType"] = config.CloudType.ValueString()
+	}
+
+	if !config.ContainerDiskInGb.IsNull() {
+		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
 
 	if !config.VcpuCount.IsNull() {
@@ -165,22 +173,6 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 
 	if !config.MinCudaVersion.IsNull() && config.MinCudaVersion.ValueString() != "" {
 		body["minCudaVersion"] = config.MinCudaVersion.ValueString()
-	}
-
-	if !config.GpuTypeIds.IsNull() && len(config.GpuTypeIds.Elements()) > 0 {
-		gpuTypeIds := make([]interface{}, 0)
-		for _, id := range config.GpuTypeIds.Elements() {
-			if strVal, ok := id.(types.String); ok {
-				gpuTypeIds = append(gpuTypeIds, strVal.ValueString())
-			}
-		}
-		if len(gpuTypeIds) > 0 {
-			body["gpuTypeIds"] = gpuTypeIds
-		}
-	}
-
-	if !config.GpuTypePriority.IsNull() && config.GpuTypePriority.ValueString() != "" {
-		body["gpuTypePriority"] = config.GpuTypePriority.ValueString()
 	}
 
 	if !config.CpuFlavorIds.IsNull() && len(config.CpuFlavorIds.Elements()) > 0 {
@@ -428,6 +420,27 @@ func (r *EndpointResource) Create(ctx context.Context, req resource.CreateReques
 		}
 	}
 
+	if val, ok := result["gpuTypePriority"].(string); ok {
+		config.GpuTypePriority = types.StringValue(val)
+	}
+
+	if val, ok := result["cpuFlavorIds"].([]interface{}); ok {
+		cpuFlavorIds := make([]attr.Value, 0)
+		for _, id := range val {
+			if idStr, ok := id.(string); ok {
+				cpuFlavorIds = append(cpuFlavorIds, types.StringValue(idStr))
+			}
+		}
+		if len(cpuFlavorIds) > 0 {
+			cpuFlavorIdsList, diags := types.ListValue(types.StringType, cpuFlavorIds)
+			if diags.HasError() {
+				resp.Diagnostics.Append(diags...)
+				return
+			}
+			config.CpuFlavorIds = cpuFlavorIdsList
+		}
+	}
+
 	diags = resp.State.Set(ctx, &config)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
@@ -486,8 +499,8 @@ func (r *EndpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
-	if val, ok := result["templateId"].(string); ok {
-		state.TemplateId = types.StringValue(val)
+	if val, ok := result["image"].(string); ok {
+		state.ImageName = types.StringValue(val)
 	}
 	if val, ok := result["name"].(string); ok {
 		state.Name = types.StringValue(val)
@@ -641,6 +654,16 @@ func (r *EndpointResource) Read(ctx context.Context, req resource.ReadRequest, r
 		}
 	}
 
+	if val, ok := result["flashboot"].(bool); ok {
+		state.Flashboot = types.BoolValue(val)
+	}
+	if val, ok := result["cloud"].(string); ok {
+		state.CloudType = types.StringValue(val)
+	}
+	if val, ok := result["disk"].(float64); ok {
+		state.ContainerDiskInGb = types.Int64Value(int64(val))
+	}
+
 	diags = resp.State.Set(ctx, &state)
 	if diags.HasError() {
 		resp.Diagnostics.Append(diags...)
@@ -671,6 +694,16 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 
 	if !config.Name.IsNull() && config.Name.ValueString() != "" {
 		body["name"] = config.Name.ValueString()
+	}
+
+	if !config.ImageName.IsNull() && config.ImageName.ValueString() != "" {
+		body["image"] = config.ImageName.ValueString()
+	}
+	if !config.GpuTypeId.IsNull() && config.GpuTypeId.ValueString() != "" {
+		body["gpu"] = map[string]interface{}{
+			"id":    config.GpuTypeId.ValueString(),
+			"count": config.GpuCount.ValueInt64(),
+		}
 	}
 
 	if !config.NetworkVolumeId.IsNull() && config.NetworkVolumeId.ValueString() != "" {
@@ -717,8 +750,12 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 		body["computeType"] = config.ComputeType.ValueString()
 	}
 
-	if !config.GpuCount.IsNull() {
-		body["gpuCount"] = int64(config.GpuCount.ValueInt64())
+	if !config.CloudType.IsNull() && config.CloudType.ValueString() != "" {
+		body["cloudType"] = config.CloudType.ValueString()
+	}
+
+	if !config.ContainerDiskInGb.IsNull() {
+		body["containerDiskInGb"] = int64(config.ContainerDiskInGb.ValueInt64())
 	}
 
 	if !config.VcpuCount.IsNull() {
@@ -765,22 +802,6 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 		body["minCudaVersion"] = config.MinCudaVersion.ValueString()
 	}
 
-	if !config.GpuTypeIds.IsNull() && len(config.GpuTypeIds.Elements()) > 0 {
-		gpuTypeIds := make([]interface{}, 0)
-		for _, id := range config.GpuTypeIds.Elements() {
-			if strVal, ok := id.(types.String); ok {
-				gpuTypeIds = append(gpuTypeIds, strVal.ValueString())
-			}
-		}
-		if len(gpuTypeIds) > 0 {
-			body["gpuTypeIds"] = gpuTypeIds
-		}
-	}
-
-	if !config.GpuTypePriority.IsNull() && config.GpuTypePriority.ValueString() != "" {
-		body["gpuTypePriority"] = config.GpuTypePriority.ValueString()
-	}
-
 	if !config.CpuFlavorIds.IsNull() && len(config.CpuFlavorIds.Elements()) > 0 {
 		cpuFlavorIds := make([]interface{}, 0)
 		for _, id := range config.CpuFlavorIds.Elements() {
@@ -799,6 +820,9 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 
 	if !config.Flashboot.IsNull() {
 		body["flashboot"] = config.Flashboot.ValueBool()
+	}
+
+	if !config.CloudType.IsNull() && config.CloudType.ValueString() != "" {
 	}
 
 	jsonBody, err := json.Marshal(body)
@@ -990,6 +1014,31 @@ func (r *EndpointResource) Update(ctx context.Context, req resource.UpdateReques
 				return
 			}
 			state.NetworkVolumeIds = networkVolumeIdsList
+		}
+	}
+
+	if val, ok := result["flashboot"].(bool); ok {
+		state.Flashboot = types.BoolValue(val)
+	}
+
+	if val, ok := result["gpuTypePriority"].(string); ok {
+		state.GpuTypePriority = types.StringValue(val)
+	}
+
+	if val, ok := result["cpuFlavorIds"].([]interface{}); ok {
+		cpuFlavorIds := make([]attr.Value, 0)
+		for _, id := range val {
+			if idStr, ok := id.(string); ok {
+				cpuFlavorIds = append(cpuFlavorIds, types.StringValue(idStr))
+			}
+		}
+		if len(cpuFlavorIds) > 0 {
+			cpuFlavorIdsList, diags := types.ListValue(types.StringType, cpuFlavorIds)
+			if diags.HasError() {
+				resp.Diagnostics.Append(diags...)
+				return
+			}
+			state.CpuFlavorIds = cpuFlavorIdsList
 		}
 	}
 
